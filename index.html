@@ -115,6 +115,8 @@
         </div>
       </div>
 
+      <button class="solana-btn" id="openStoreBtn" style="background: #eab308; color: #fff; margin-bottom: 20px;">Open
+        Store</button>
       <button class="play-btn" id="playBtn" style="margin-bottom: 10px;">Play</button>
       <button class="solana-btn" id="createMapBtn" style="display: none; background: #8b5cf6; color: white;">Create
         Map (Dev Only)</button>
@@ -130,6 +132,23 @@
         <script>
           (adsbygoogle = window.adsbygoogle || []).push({});
         </script>
+      </div>
+    </div>
+  </div>
+
+  <!-- Store Modal -->
+  <div id="storeModal" class="store-modal" style="display: none;">
+    <div class="store-card">
+      <div class="store-header">
+        <h2>Skins Store</h2>
+        <button id="closeStoreBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="store-tabs">
+        <button class="store-tab active" data-tab="premium">Premium</button>
+        <button class="store-tab" data-tab="free">Free</button>
+      </div>
+      <div class="store-grid" id="storeGrid">
+        <!-- Skin cards will be dynamically injected here -->
       </div>
     </div>
   </div>

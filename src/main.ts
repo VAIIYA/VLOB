@@ -2,7 +2,7 @@ import './style.css';
 import { Game } from './engine';
 import { InputManager } from './input/InputManager';
 import { auth } from './utils/auth';
-import { getUserProfile, createUserProfile, updateUserProfile, initSchema, UserProfile, getTopMassPlayers, getTopKillPlayers } from './utils/db';
+import { getUserProfile, createUserProfile, updateUserProfile, initSchema, UserProfile, getTopMassPlayers, getTopKillPlayers, addOwnedSkin } from './utils/db';
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menu = document.getElementById('menu') as HTMLDivElement;
@@ -37,12 +37,39 @@ const profileSection = document.getElementById('profileSection') as HTMLDivEleme
 const displayLevel = document.getElementById('displayLevel') as HTMLSpanElement;
 const displayWins = document.getElementById('displayWins') as HTMLSpanElement;
 
-let currentUser: UserProfile | null = null;
+// Store UI Elements
+const openStoreBtn = document.getElementById('openStoreBtn') as HTMLButtonElement;
+const storeModal = document.getElementById('storeModal') as HTMLDivElement;
+const closeStoreBtn = document.getElementById('closeStoreBtn') as HTMLButtonElement;
+const storeGrid = document.getElementById('storeGrid') as HTMLDivElement;
+const storeTabs = document.querySelectorAll('.store-tab');
 
-// Preload Image Skins
-['doge', 'bunny', 'alien_face'].forEach(skin => {
+let currentUser: UserProfile | null = null;
+let selectedSkin = 'default';
+let activeStoreTab: 'premium' | 'free' = 'premium';
+const PREMIUM_PRICE_SOL = 0.1;
+
+// Define Skins
+const premiumSkins = [
+  { id: 'tiger', name: 'Tiger', type: 'image' },
+  { id: 'skull', name: 'Skull', type: 'image' },
+  { id: 'pumpkin', name: 'Pumpkin', type: 'image' },
+  { id: 'ninja', name: 'Ninja', type: 'image' },
+  { id: 'gorilla', name: 'Gorilla', type: 'image' }
+];
+
+const freeSkins = [
+  { id: 'default', name: 'Default', type: 'color', value: '#3b82f6' },
+  { id: 'neon', name: 'Neon', type: 'gradient', value: 'linear-gradient(45deg, #3b82f6, #60a5fa)' },
+  { id: 'doge', name: 'Doge', type: 'image' },
+  { id: 'bunny', name: 'Bunny', type: 'image' },
+  { id: 'alien_face', name: 'Alien Face', type: 'image' }
+];
+
+// Preload Default free skins
+freeSkins.filter(s => s.type === 'image').forEach(skin => {
   const img = new Image();
-  img.src = `/skins/${skin}.png`;
+  img.src = `/skins/${skin.id}.png`;
 });
 
 // Death Popup Elements
@@ -244,9 +271,106 @@ canvas.addEventListener('contextmenu', (e) => {
   if (isEditorMode) e.preventDefault();
 });
 
-let selectedSkin = 'default';
+// --- Store Logic ---
+function renderStore() {
+  if (!storeGrid) return;
 
-// Skin Selection Wiring
+  const defaultOwned = freeSkins.map(s => s.id);
+  const ownedSkins = currentUser?.owned_skins || defaultOwned;
+  const listToRender = activeStoreTab === 'premium' ? premiumSkins : freeSkins;
+
+  storeGrid.innerHTML = listToRender.map(skin => {
+    const isOwned = ownedSkins.includes(skin.id);
+    const isEquipped = selectedSkin === skin.id;
+
+    let previewStyle = '';
+    if (skin.type === 'image') previewStyle = `background-image: url('/skins/${skin.id}.png');`;
+    else if (skin.type === 'color' || skin.type === 'gradient') previewStyle = `background: ${(skin as any).value};`;
+
+    let actionHtml = '';
+    if (isEquipped) {
+      actionHtml = `<button class="skin-action-btn btn-equipped">Equipped</button>`;
+    } else if (isOwned) {
+      actionHtml = `<button class="skin-action-btn btn-equip" data-skin="${skin.id}">Equip</button>`;
+    } else {
+      actionHtml = `<button class="skin-action-btn btn-buy" data-skin="${skin.id}">Buy (0.1 SOL)</button>`;
+    }
+
+    return `
+      <div class="skin-card">
+        <div class="skin-preview" style="${previewStyle}"></div>
+        <div class="skin-name">${skin.name}</div>
+        ${actionHtml}
+      </div>
+    `;
+  }).join('');
+}
+
+storeTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    storeTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeStoreTab = tab.getAttribute('data-tab') as 'premium' | 'free';
+    renderStore();
+  });
+});
+
+openStoreBtn?.addEventListener('click', () => {
+  storeModal.style.display = 'flex';
+  renderStore();
+});
+
+closeStoreBtn?.addEventListener('click', () => {
+  storeModal.style.display = 'none';
+});
+
+storeGrid?.addEventListener('click', async (e) => {
+  const target = e.target as HTMLElement;
+
+  if (target.classList.contains('btn-equip')) {
+    const skinId = target.getAttribute('data-skin');
+    if (skinId) {
+      selectedSkin = skinId;
+      if (game) game.setPlayerSkin(selectedSkin);
+      renderStore();
+      // Update main menu active skin display
+      document.querySelectorAll('.skin-option').forEach(o => o.classList.remove('active'));
+      const matchingOpt = document.querySelector(`.skin-option[data-skin="${skinId}"]`);
+      if (matchingOpt) matchingOpt.classList.add('active');
+    }
+  } else if (target.classList.contains('btn-buy')) {
+    const skinId = target.getAttribute('data-skin');
+    if (!skinId) return;
+
+    if (!auth.isConnected() || !currentUser) {
+      alert('Please connect your Solana wallet first!');
+      return;
+    }
+
+    target.textContent = 'Processing...';
+    target.style.opacity = '0.5';
+
+    const success = await auth.purchaseSkin(PREMIUM_PRICE_SOL, DEV_WALLET);
+    if (success) {
+      await addOwnedSkin(auth.walletAddress!, skinId);
+      if (!currentUser.owned_skins) currentUser.owned_skins = freeSkins.map(s => s.id);
+      if (!currentUser.owned_skins.includes(skinId)) {
+        currentUser.owned_skins.push(skinId);
+      }
+      // Preload the purchased skin
+      const img = new Image();
+      img.src = `/skins/${skinId}.png`;
+
+      alert(`Successfully purchased ${skinId}!`);
+      renderStore();
+    } else {
+      alert('Transaction failed or was canceled.');
+      renderStore();
+    }
+  }
+});
+
+// Skin Selection Wiring (Main Menu Legacy)
 const skinOptions = document.querySelectorAll('.skin-option');
 skinOptions.forEach(opt => {
   opt.addEventListener('click', () => {

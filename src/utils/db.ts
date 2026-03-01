@@ -21,6 +21,7 @@ export interface UserProfile {
     kills: number;
     wins: number;
     losses: number;
+    owned_skins: string[];
 }
 
 export async function initSchema() {
@@ -41,6 +42,7 @@ export async function initSchema() {
         // Migration: Add columns if they don't exist
         try { await db.execute("ALTER TABLE users ADD COLUMN max_mass INTEGER DEFAULT 0"); } catch (e) { }
         try { await db.execute("ALTER TABLE users ADD COLUMN kills INTEGER DEFAULT 0"); } catch (e) { }
+        try { await db.execute("ALTER TABLE users ADD COLUMN owned_skins TEXT DEFAULT '[\"default\", \"neon\", \"alien\", \"core\", \"ghost\", \"doge\", \"bunny\", \"alien_face\"]'"); } catch (e) { }
 
         console.log('Turso schema initialized');
     } catch (error) {
@@ -82,7 +84,11 @@ export async function getUserProfile(walletAddress: string): Promise<UserProfile
         });
 
         if (result.rows.length > 0) {
-            return result.rows[0] as unknown as UserProfile;
+            const row = result.rows[0] as unknown as UserProfile & { owned_skins: string };
+            return {
+                ...row,
+                owned_skins: typeof row.owned_skins === 'string' ? JSON.parse(row.owned_skins) : row.owned_skins
+            };
         }
         return null;
     } catch (error) {
@@ -110,7 +116,11 @@ export async function updateUserProfile(profile: Partial<UserProfile> & { wallet
         if (fields.length === 0) return;
 
         const setClause = fields.map(f => `${f} = ?`).join(', ');
-        const args = fields.map(f => (profile as any)[f]).concat(profile.wallet_address);
+
+        const args = fields.map(f => {
+            const val = (profile as any)[f];
+            return typeof val === 'object' ? JSON.stringify(val) : val;
+        }).concat(profile.wallet_address);
 
         await db.execute({
             sql: `UPDATE users SET ${setClause} WHERE wallet_address = ?`,
@@ -118,5 +128,16 @@ export async function updateUserProfile(profile: Partial<UserProfile> & { wallet
         });
     } catch (error) {
         console.error('Error updating user profile:', error);
+    }
+}
+
+export async function addOwnedSkin(walletAddress: string, skinId: string) {
+    const profile = await getUserProfile(walletAddress);
+    if (profile && !profile.owned_skins.includes(skinId)) {
+        profile.owned_skins.push(skinId);
+        await updateUserProfile({
+            wallet_address: walletAddress,
+            owned_skins: profile.owned_skins
+        });
     }
 }
