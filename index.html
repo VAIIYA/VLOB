@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>VLOBHAUS - Agar.io Clone</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="gameCanvas"></canvas>
+      
+      <div id="hud">
+        <div class="leaderboard" id="leaderboard">
+          <h3>Leaderboard</h3>
+          <div id="leaderboardList"></div>
+        </div>
+        
+        <div class="score-display">
+          Mass: <span id="scoreValue">0</span>
+        </div>
+      </div>
+
+      <div id="menu">
+        <div class="menu-card">
+          <h1>VLOBHAUS</h1>
+          <input type="text" id="playerName" placeholder="Enter Name" maxlength="15" value="Guest" />
+          <button class="play-btn" id="playBtn">Play</button>
+          <div class="controls-hint">
+            Desktop: Mouse to move, Space to Split, W to Eject<br>
+            Mobile: Touch to move
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
