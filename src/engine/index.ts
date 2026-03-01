@@ -21,6 +21,8 @@ export class Game {
     private isSpectating: boolean = false;
     private startTime: number = Date.now();
     private gameMode: 'ffa' | 'team' = 'ffa';
+    private playerName: string = 'Guest';
+    private playerSkin: string = 'default';
 
     constructor(canvas: HTMLCanvasElement, onGameOver: (stats: { mass: number }) => void) {
         this.canvas = canvas;
