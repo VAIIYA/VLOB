@@ -1,4 +1,5 @@
 import { Blob, Entity, Food, Virus, PowerUp, PowerUpType, Obstacle, ObstacleShape } from './Entities';
+import { SoundManager } from './SoundManager';
 
 export class Game {
     private canvas: HTMLCanvasElement;
@@ -218,11 +219,13 @@ export class Game {
 
                 if (dist < blob.radius) {
                     if (item instanceof PowerUp) {
+                        SoundManager.playPowerUp();
                         this.applyPowerUp(item.powerType);
                         this.entities = this.entities.filter(e => e !== item);
                         setTimeout(() => this.spawnPowerUps(1), 5000);
                     } else {
                         blob.addMass(item.mass);
+                        SoundManager.playEatFood();
                         this.entities = this.entities.filter(e => e !== item);
                         this.spawnFood(1);
                     }
@@ -239,6 +242,7 @@ export class Game {
 
                 if (dist < blob.radius && blob.mass > bot.mass * 1.1) {
                     blob.addMass(bot.mass);
+                    SoundManager.playEatEnemy();
                     this.entities = this.entities.filter(e => e !== bot);
                     this.spawnBots(1);
                 } else if (dist < bot.radius && bot.mass > blob.mass * 1.1) {
@@ -287,6 +291,7 @@ export class Game {
                         // Make the larger or elder blob the eater to be consistent
                         if (blob.mass >= other.mass) {
                             blob.addMass(other.mass);
+                            SoundManager.playMerge();
                             this.playerBlobs = this.playerBlobs.filter(b => b !== other);
                             this.entities = this.entities.filter(e => e !== other);
                         }
@@ -479,6 +484,7 @@ export class Game {
 
     public split() {
         if (this.playerBlobs.length >= 16) return;
+        SoundManager.playSplit();
         const newBlobs: Blob[] = [];
         this.playerBlobs.forEach(blob => {
             if (blob.mass >= 35) {
@@ -546,8 +552,10 @@ export class Game {
     }
 
     public ejectMass() {
+        let ejected = false;
         this.playerBlobs.forEach(blob => {
             if (blob.mass >= 35) {
+                ejected = true;
                 const ejectAmount = 15;
                 blob.mass -= ejectAmount;
                 blob.calculateRadius();
@@ -570,6 +578,7 @@ export class Game {
                 this.entities.push(food);
             }
         });
+        if (ejected) SoundManager.playEject();
     }
 
     // Map Editor Methods

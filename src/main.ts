@@ -3,6 +3,7 @@ import { Game } from './engine';
 import { InputManager } from './input/InputManager';
 import { auth } from './utils/auth';
 import { getUserProfile, createUserProfile, updateUserProfile, initSchema, UserProfile, getTopMassPlayers, getTopKillPlayers, addOwnedSkin } from './utils/db';
+import { SoundManager } from './engine/SoundManager';
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menu = document.getElementById('menu') as HTMLDivElement;
@@ -382,6 +383,7 @@ skinOptions.forEach(opt => {
 });
 
 function startGame() {
+  SoundManager.init(); // Initialize Web Audio API on first user interaction
   const name = playerNameInput.value || 'Guest';
   menu.style.opacity = '0';
   setTimeout(() => {
