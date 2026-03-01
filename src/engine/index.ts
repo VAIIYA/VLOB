@@ -9,10 +9,12 @@ export class Game {
     private camera = { x: 0, y: 0, scale: 1 };
     private worldSize = 5000;
     private mousePos = { x: 0, y: 0 };
+    private onGameOver: (stats: { mass: number }) => void;
 
-    constructor(canvas: HTMLCanvasElement) {
+    constructor(canvas: HTMLCanvasElement, onGameOver: (stats: { mass: number }) => void) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')!;
+        this.onGameOver = onGameOver;
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
@@ -104,6 +106,11 @@ export class Game {
                 }
             }
             entity.update(dt);
+
+            // Enforce world boundaries
+            const halfSize = this.worldSize / 2;
+            entity.position.x = Math.max(-halfSize + entity.radius, Math.min(halfSize - entity.radius, entity.position.x));
+            entity.position.y = Math.max(-halfSize + entity.radius, Math.min(halfSize - entity.radius, entity.position.y));
         });
 
         // Handle collisions
@@ -220,6 +227,9 @@ export class Game {
 
     private handleGameOver() {
         console.log("GAME OVER");
+        const finalMass = this.getPlayerMass();
+        this.onGameOver({ mass: finalMass });
+
         const player = new Blob({
             id: `player-${Date.now()}`,
             position: { x: (Math.random() - 0.5) * 1000, y: (Math.random() - 0.5) * 1000 },

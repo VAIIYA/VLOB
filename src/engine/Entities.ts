@@ -103,11 +103,14 @@ export class Blob extends Entity {
             const angle = Math.atan2(dy, dx);
             // Speed decreases as mass increases
             const currentSpeed = this.speed / Math.pow(this.mass, 0.1);
-            this.velocity.x = Math.cos(angle) * currentSpeed;
-            this.velocity.y = Math.sin(angle) * currentSpeed;
-        } else {
-            this.velocity.x = 0;
-            this.velocity.y = 0;
+
+            // Blend target velocity with current velocity to allow impulses (split/eject) to persist
+            const targetVelX = Math.cos(angle) * currentSpeed;
+            const targetVelY = Math.sin(angle) * currentSpeed;
+
+            // Smoothly move towards target velocity
+            this.velocity.x += (targetVelX - this.velocity.x) * 0.1;
+            this.velocity.y += (targetVelY - this.velocity.y) * 0.1;
         }
 
         super.update(dt);
