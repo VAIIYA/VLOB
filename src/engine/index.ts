@@ -374,10 +374,10 @@ export class Game {
             velocity: { x: 0, y: 0 },
             mass: 25,
             radius: 0,
-            color: '#3b82f6',
+            color: team === 'red' ? '#ef4444' : (team === 'blue' ? '#3b82f6' : '#3b82f6'),
             type: 'player',
-            name: this.playerBlobs[0]?.name || 'YOU',
-            skin: this.playerBlobs[0]?.skin,
+            name: this.playerName,
+            skin: this.playerSkin,
             team: team as 'red' | 'blue' | undefined
         });
 
@@ -437,6 +437,7 @@ export class Game {
     }
 
     public setPlayerName(name: string) {
+        this.playerName = name;
         this.playerBlobs.forEach(b => b.name = name);
     }
 
@@ -451,6 +452,7 @@ export class Game {
     }
 
     public setPlayerSkin(skin: string) {
+        this.playerSkin = skin;
         this.playerBlobs.forEach(b => b.skin = skin);
     }
 
