@@ -1,4 +1,4 @@
-import { Blob, Entity, Food, Virus } from './Entities';
+import { Blob, Entity, Food, Virus, PowerUp, PowerUpType } from './Entities';
 
 export class Game {
     private canvas: HTMLCanvasElement;
@@ -10,6 +10,10 @@ export class Game {
     private worldSize = 5000;
     private mousePos = { x: 0, y: 0 };
     private onGameOver: (stats: { mass: number }) => void;
+    private playerPowerUps = {
+        speed: 0,
+        shield: 0
+    };
 
     constructor(canvas: HTMLCanvasElement, onGameOver: (stats: { mass: number }) => void) {
         this.canvas = canvas;
@@ -23,7 +27,7 @@ export class Game {
             id: 'player-1',
             position: { x: 0, y: 0 },
             velocity: { x: 0, y: 0 },
-            mass: 15,
+            mass: 25,
             radius: 0,
             color: '#3b82f6',
             type: 'player',
@@ -39,6 +43,8 @@ export class Game {
         this.spawnBots(10);
         // Initial viruses
         this.spawnViruses(15);
+        // Initial power-ups
+        this.spawnPowerUps(5);
 
         requestAnimationFrame(this.loop.bind(this));
     }
@@ -69,7 +75,7 @@ export class Game {
                 id: `bot-${i}`,
                 position: { x, y },
                 velocity: { x: 0, y: 0 },
-                mass: 10 + Math.random() * 20,
+                mass: 15 + Math.random() * 25,
                 radius: 0,
                 color,
                 type: 'bot',
@@ -82,7 +88,19 @@ export class Game {
         for (let i = 0; i < count; i++) {
             const x = (Math.random() - 0.5) * (this.worldSize - 200);
             const y = (Math.random() - 0.5) * (this.worldSize - 200);
-            this.entities.push(new Virus(`virus-${Date.now()}-${i}`, x, y));
+            const masses = [40, 70, 110]; // Small, Medium, Large
+            const mass = masses[Math.floor(Math.random() * masses.length)];
+            this.entities.push(new Virus(`virus-${Date.now()}-${i}`, x, y, mass));
+        }
+    }
+
+    private spawnPowerUps(count: number) {
+        const types: PowerUpType[] = ['SPEED', 'SHIELD', 'MASS'];
+        for (let i = 0; i < count; i++) {
+            const x = (Math.random() - 0.5) * (this.worldSize - 400);
+            const y = (Math.random() - 0.5) * (this.worldSize - 400);
+            const type = types[Math.floor(Math.random() * types.length)];
+            this.entities.push(new PowerUp(`pw-${Date.now()}-${i}`, x, y, type));
         }
     }
 
@@ -97,8 +115,9 @@ export class Game {
     }
 
     private update(dt: number) {
-        // Update player target from mouse (will be handled by InputManager later)
-        // For now, let's just make it follow mouse directly if we have events
+        // Update power-up timers
+        if (this.playerPowerUps.speed > 0) this.playerPowerUps.speed -= dt * 1000;
+        if (this.playerPowerUps.shield > 0) this.playerPowerUps.shield -= dt * 1000;
 
         this.entities.forEach(entity => {
             if (entity instanceof Blob) {
@@ -113,6 +132,12 @@ export class Game {
                 } else if (entity.type === 'player') {
                     // Follow mouse
                     entity.target = this.mouseToWorld(this.mousePos.x, this.mousePos.y);
+                    // Apply speed boost
+                    if (this.playerPowerUps.speed > 0) {
+                        entity.speed = 400; // Double speed
+                    } else {
+                        entity.speed = 200;
+                    }
                 }
             }
             entity.update(dt);
@@ -164,9 +189,15 @@ export class Game {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < blob.radius) {
-                    blob.addMass(item.mass);
-                    this.entities = this.entities.filter(e => e !== item);
-                    this.spawnFood(1);
+                    if (item instanceof PowerUp) {
+                        this.applyPowerUp(item.powerType);
+                        this.entities = this.entities.filter(e => e !== item);
+                        setTimeout(() => this.spawnPowerUps(1), 5000);
+                    } else {
+                        blob.addMass(item.mass);
+                        this.entities = this.entities.filter(e => e !== item);
+                        this.spawnFood(1);
+                    }
                 }
             }
 
@@ -194,8 +225,12 @@ export class Game {
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
                 if (dist < blob.radius && blob.mass > virus.mass * 1.1) {
-                    // Split the player when hitting a virus
-                    this.explodeBlob(blob);
+                    // Shield power-up protects from splitting
+                    if (this.playerPowerUps.shield > 0) {
+                        blob.addMass(virus.mass / 2); // Still eat it but don't explode
+                    } else {
+                        this.explodeBlob(blob);
+                    }
                     // Virus disappears and respawns
                     this.entities = this.entities.filter(e => e !== virus);
                     this.spawnViruses(1);
@@ -260,7 +295,7 @@ export class Game {
             id: `player-${Date.now()}`,
             position: { x: (Math.random() - 0.5) * 1000, y: (Math.random() - 0.5) * 1000 },
             velocity: { x: 0, y: 0 },
-            mass: 15,
+            mass: 25,
             radius: 0,
             color: '#3b82f6',
             type: 'player',
@@ -332,7 +367,18 @@ export class Game {
             .slice(0, 10);
     }
 
+    private applyPowerUp(type: PowerUpType) {
+        if (type === 'SPEED') {
+            this.playerPowerUps.speed = 10000; // 10s
+        } else if (type === 'SHIELD') {
+            this.playerPowerUps.shield = 10000; // 10s
+        } else if (type === 'MASS') {
+            this.playerBlobs.forEach(b => b.addMass(50));
+        }
+    }
+
     public split() {
+        // ... (rest same, ensuring mass check matches implementation plan)
         if (this.playerBlobs.length >= 16) return;
 
         const newBlobs: Blob[] = [];

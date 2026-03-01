@@ -4,10 +4,8 @@ export class InputManager {
     private onEject: () => void;
 
     private controlMode: 'follow' | 'joystick' = 'follow';
-    private buttonPosition: 'left' | 'right' = 'right';
     private isJoystickActive = false;
     private joystickStartPos = { x: 0, y: 0 };
-    private joystickCurrentPos = { x: 0, y: 0 };
     private joystickMaxRadius = 50;
 
     constructor(handlers: {
@@ -37,7 +35,7 @@ export class InputManager {
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
                 this.onSplit();
-            } else if (e.code === 'KeyW') {
+            } else if (e.code === 'KeyE') {
                 this.onEject();
             }
         });
@@ -72,7 +70,6 @@ export class InputManager {
         // Joystick Event Listeners
         if (joystickContainer && joystickKnob) {
             joystickContainer.addEventListener('touchstart', (e) => {
-                const touch = e.touches[0];
                 const rect = joystickContainer.getBoundingClientRect();
                 this.joystickStartPos = {
                     x: rect.left + rect.width / 2,
@@ -149,8 +146,8 @@ export class InputManager {
         const joystickContainer = document.getElementById('joystickContainer');
         const actionButtons = document.getElementById('actionButtons');
 
-        if (mode === 'joystick') {
-            if (joystickContainer) joystickContainer.style.display = 'flex';
+        if (mode === 'joystick' || 'ontouchstart' in window) {
+            if (joystickContainer && mode === 'joystick') joystickContainer.style.display = 'flex';
             if (actionButtons) actionButtons.style.display = 'flex';
         } else {
             if (joystickContainer) joystickContainer.style.display = 'none';
@@ -159,7 +156,6 @@ export class InputManager {
     }
 
     public setButtonPosition(position: 'left' | 'right') {
-        this.buttonPosition = position;
         const joystickContainer = document.getElementById('joystickContainer');
         const actionButtons = document.getElementById('actionButtons');
 

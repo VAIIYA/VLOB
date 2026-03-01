@@ -147,18 +147,18 @@ export class Blob extends Entity {
 }
 
 export class Virus extends Entity {
-    constructor(id: string, x: number, y: number) {
+    constructor(id: string, x: number, y: number, mass: number = 50) {
         super({
             id,
             position: { x, y },
             velocity: { x: 0, y: 0 },
-            mass: 50,
+            mass,
             radius: 0,
             color: '#22c55e',
             type: 'virus'
         });
         this.calculateRadius();
-        this.radius *= 1.2; // Viruses look bigger
+        this.radius *= 1.1; // Viruses look slightly bigger for their mass
     }
 
     draw(ctx: CanvasRenderingContext2D, _camera: { x: number, y: number, scale: number }) {
@@ -183,6 +183,64 @@ export class Virus extends Entity {
         ctx.strokeStyle = '#15803d';
         ctx.lineWidth = 3;
         ctx.stroke();
+        ctx.restore();
+    }
+}
+
+export type PowerUpType = 'SPEED' | 'SHIELD' | 'MASS';
+
+export class PowerUp extends Entity {
+    powerType: PowerUpType;
+    duration: number = 10000; // 10 seconds default
+
+    constructor(id: string, x: number, y: number, type: PowerUpType) {
+        const colors = {
+            'SPEED': '#fbbf24', // Amber/Yellow
+            'SHIELD': '#22d3ee', // Cyan
+            'MASS': '#f472b6'    // Pink
+        };
+
+        super({
+            id,
+            position: { x, y },
+            velocity: { x: 0, y: 0 },
+            mass: 20,
+            radius: 20,
+            color: colors[type],
+            type: 'food' // Treat as food for basic collision, but refine in Game.ts
+        });
+        this.powerType = type;
+        this.radius = 25;
+    }
+
+    draw(ctx: CanvasRenderingContext2D, _camera: { x: number, y: number, scale: number }) {
+        ctx.save();
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = 0.3;
+        ctx.fill();
+
+        // Inner circle
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius * 0.7, 0, Math.PI * 2);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Icon/Text placeholder
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 14px Inter';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const icon = this.powerType === 'SPEED' ? '⚡' : this.powerType === 'SHIELD' ? '🛡️' : '💎';
+        ctx.fillText(icon, this.position.x, this.position.y);
+
         ctx.restore();
     }
 }
