@@ -2,7 +2,7 @@ import './style.css';
 import { Game } from './engine';
 import { InputManager } from './input/InputManager';
 import { auth } from './utils/auth';
-import { getUserProfile, createUserProfile, updateUserProfile, initSchema, UserProfile } from './utils/db';
+import { getUserProfile, createUserProfile, updateUserProfile, initSchema, UserProfile, getTopMassPlayers, getTopKillPlayers } from './utils/db';
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menu = document.getElementById('menu') as HTMLDivElement;
@@ -10,17 +10,26 @@ const playBtn = document.getElementById('playBtn') as HTMLButtonElement;
 const playerNameInput = document.getElementById('playerName') as HTMLInputElement;
 
 // Control Settings Wiring
-const controlFollow = document.getElementById('controlFollow');
-const controlJoystick = document.getElementById('controlJoystick');
 const posLeft = document.getElementById('posLeft') as HTMLInputElement;
 const posRight = document.getElementById('posRight') as HTMLInputElement;
+
+// Sidebar & Leaderboards
+const sidebarToggle = document.getElementById('sidebarToggle') as HTMLButtonElement;
+const globalLeaderboards = document.getElementById('globalLeaderboards') as HTMLDivElement;
+const massLeaderboard = document.getElementById('massLeaderboard') as HTMLDivElement;
+const killLeaderboard = document.getElementById('killLeaderboard') as HTMLDivElement;
+
+// Game Mode
+const modeFFA = document.getElementById('modeFFA') as HTMLDivElement;
+const modeTeam = document.getElementById('modeTeam') as HTMLDivElement;
+let gameMode: 'ffa' | 'team' = 'ffa';
 
 const scoreValue = document.getElementById('scoreValue') as HTMLSpanElement;
 
 let game: Game | null = null;
 let inputManager: InputManager | null = null; // Declare inputManager globally
 
-const leaderboardList = document.getElementById('leaderboardList') as HTMLDivElement;
+// Leaderboard removed from HUD
 
 const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
 const authSection = document.getElementById('authSection') as HTMLDivElement;
@@ -30,18 +39,36 @@ const displayWins = document.getElementById('displayWins') as HTMLSpanElement;
 
 let currentUser: UserProfile | null = null;
 
+// Preload Image Skins
+['doge', 'bunny', 'alien_face'].forEach(skin => {
+  const img = new Image();
+  img.src = `/skins/${skin}.png`;
+});
+
+// Death Popup Elements
+const deathPopup = document.getElementById('deathPopup') as HTMLDivElement;
+const deathMass = document.getElementById('deathMass') as HTMLSpanElement;
+const deathTime = document.getElementById('deathTime') as HTMLSpanElement;
+const respawnBtn = document.getElementById('respawnBtn') as HTMLButtonElement;
+const observeBtn = document.getElementById('observeBtn') as HTMLButtonElement;
+const quitBtn = document.getElementById('quitBtn') as HTMLButtonElement;
+
 // Initial build
-game = new Game(canvas, async (stats) => {
+game = new Game(canvas, async (stats: any) => {
   // Handle Game Over
+  deathMass.textContent = stats.mass.toString();
+  deathTime.textContent = `${stats.timeAlive}s`;
+  deathPopup.style.display = 'flex';
+
   if (currentUser) {
     currentUser.losses += 1;
     currentUser.total_mass += stats.mass;
-    // Simple level up logic
-    currentUser.level = Math.floor(currentUser.total_mass / 5000) + 1;
+    if (stats.mass > (currentUser.max_mass || 0)) currentUser.max_mass = stats.mass;
+    if (stats.kills) currentUser.kills = (currentUser.kills || 0) + stats.kills;
 
+    currentUser.level = Math.floor(currentUser.total_mass / 5000) + 1;
     await updateUserProfile(currentUser);
 
-    // Update UI
     displayLevel.textContent = `Lvl ${currentUser.level}`;
     displayWins.textContent = `Wins: ${currentUser.wins}`;
   }
@@ -57,17 +84,50 @@ inputManager = new InputManager({
   onEject: () => game?.ejectMass()
 });
 
-controlFollow?.addEventListener('click', () => {
-  controlFollow.classList.add('active');
-  controlJoystick?.classList.remove('active');
-  inputManager?.setControlMode('follow');
+inputManager?.setControlMode('joystick'); // Force joystick mode for touch controls
+
+sidebarToggle?.addEventListener('click', () => {
+  globalLeaderboards?.classList.toggle('active');
 });
 
-controlJoystick?.addEventListener('click', () => {
-  controlJoystick.classList.add('active');
-  controlFollow?.classList.remove('active');
-  inputManager?.setControlMode('joystick');
+modeFFA?.addEventListener('click', () => {
+  modeFFA.classList.add('active');
+  modeTeam?.classList.remove('active');
+  gameMode = 'ffa';
 });
+
+modeTeam?.addEventListener('click', () => {
+  modeTeam.classList.add('active');
+  modeFFA?.classList.remove('active');
+  gameMode = 'team';
+});
+
+async function loadLeaderboards() {
+  try {
+    const topMass = await getTopMassPlayers(5);
+    if (massLeaderboard) {
+      massLeaderboard.innerHTML = topMass.map((p, i) => `
+        <div class="lb-item">
+          <span class="name">${i + 1}. ${p.username}</span>
+          <span class="value">${p.max_mass || 0}</span>
+        </div>
+      `).join('');
+    }
+
+    const topKills = await getTopKillPlayers(5);
+    if (killLeaderboard) {
+      killLeaderboard.innerHTML = topKills.map((p, i) => `
+        <div class="lb-item">
+          <span class="name">${i + 1}. ${p.username}</span>
+          <span class="value">${p.kills || 0}</span>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error('Failed to load leaderboards', e);
+  }
+}
+loadLeaderboards();
 
 posLeft?.addEventListener('change', () => {
   if (posLeft.checked) inputManager?.setButtonPosition('left');
@@ -214,25 +274,35 @@ function startGame() {
     game.setPlayerName(name);
     game.setPlayerSkin(selectedSkin);
     game.setEditorMode(false);
+    (game as any).setGameMode(gameMode); // We'll add this method next
+    game.respawn();
   }
+
+  deathPopup.style.display = 'none';
 
   // HUD Update Loop (only if not in editor)
   setInterval(async () => {
     if (game && !isEditorMode) {
       const mass = game.getPlayerMass();
       scoreValue.textContent = mass.toString();
-
-      // Update Leaderboard
-      const topPlayers = game.getLeaderboard();
-      leaderboardList.innerHTML = topPlayers.map((p, i) => `
-        <div class="leaderboard-item ${p.name === 'YOU' ? 'me' : ''}">
-          <span>${i + 1}. ${p.name}</span>
-          <span>${p.mass}</span>
-        </div>
-      `).join('');
     }
   }, 200);
 }
+
+respawnBtn.addEventListener('click', () => {
+  deathPopup.style.display = 'none';
+  game?.respawn();
+});
+
+observeBtn.addEventListener('click', () => {
+  deathPopup.style.display = 'none';
+});
+
+quitBtn.addEventListener('click', () => {
+  deathPopup.style.display = 'none';
+  menu.style.display = 'flex';
+  menu.style.opacity = '1';
+});
 
 playBtn.addEventListener('click', startGame);
 

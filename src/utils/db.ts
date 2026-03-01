@@ -17,6 +17,8 @@ export interface UserProfile {
     username: string;
     level: number;
     total_mass: number;
+    max_mass: number;
+    kills: number;
     wins: number;
     losses: number;
 }
@@ -29,14 +31,46 @@ export async function initSchema() {
         username TEXT DEFAULT 'Guest',
         level INTEGER DEFAULT 1,
         total_mass INTEGER DEFAULT 0,
+        max_mass INTEGER DEFAULT 0,
+        kills INTEGER DEFAULT 0,
         wins INTEGER DEFAULT 0,
         losses INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
+        // Migration: Add columns if they don't exist
+        try { await db.execute("ALTER TABLE users ADD COLUMN max_mass INTEGER DEFAULT 0"); } catch (e) { }
+        try { await db.execute("ALTER TABLE users ADD COLUMN kills INTEGER DEFAULT 0"); } catch (e) { }
+
         console.log('Turso schema initialized');
     } catch (error) {
         console.error('Failed to initialize Turso schema:', error);
+    }
+}
+
+export async function getTopMassPlayers(limit: number = 5): Promise<UserProfile[]> {
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM users ORDER BY max_mass DESC LIMIT ?',
+            args: [limit],
+        });
+        return result.rows as unknown as UserProfile[];
+    } catch (error) {
+        console.error('Error fetching top mass players:', error);
+        return [];
+    }
+}
+
+export async function getTopKillPlayers(limit: number = 5): Promise<UserProfile[]> {
+    try {
+        const result = await db.execute({
+            sql: 'SELECT * FROM users ORDER BY kills DESC LIMIT ?',
+            args: [limit],
+        });
+        return result.rows as unknown as UserProfile[];
+    } catch (error) {
+        console.error('Error fetching top kill players:', error);
+        return [];
     }
 }
 

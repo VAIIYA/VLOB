@@ -41,52 +41,61 @@ export class InputManager {
         });
     }
 
+    private joystickTouchId: number | null = null;
+
     private initTouch() {
         const joystickContainer = document.getElementById('joystickContainer');
         const joystickKnob = document.getElementById('joystickKnob');
 
-        window.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 0) {
-                const touch = e.touches[0];
+        if (!joystickContainer || !joystickKnob) return;
 
-                // If in follow mode, treat like mouse
-                if (this.controlMode === 'follow') {
+        window.addEventListener('touchstart', (e) => {
+            // Only process if we don't already have an active joystick touch
+            if (this.joystickTouchId !== null) return;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+
+                // Check if touch is on the left side of the screen (default joystick area)
+                // and NOT on an action button (they stopPropagation, but just in case)
+                const isLeftSide = touch.clientX < window.innerWidth / 2;
+
+                if (isLeftSide && this.controlMode === 'joystick') {
+                    this.joystickTouchId = touch.identifier;
+                    this.joystickStartPos = { x: touch.clientX, y: touch.clientY };
+
+                    joystickContainer.style.display = 'flex';
+                    joystickContainer.style.left = `${touch.clientX}px`;
+                    joystickContainer.style.top = `${touch.clientY}px`;
+                    joystickKnob.style.transform = 'translate(0px, 0px)';
+
+                    this.isJoystickActive = true;
+                    // Dont break, maybe other touches are for buttons (though unlikely in same frame)
+                } else if (this.controlMode === 'follow') {
                     this.onMove(touch.clientX, touch.clientY);
                 }
-                // Joystick logic handled via container events
             }
         }, { passive: false });
 
         window.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0) {
+            if (this.controlMode === 'follow') {
                 const touch = e.touches[0];
-                if (this.controlMode === 'follow') {
-                    this.onMove(touch.clientX, touch.clientY);
-                }
+                if (touch) this.onMove(touch.clientX, touch.clientY);
             }
-            e.preventDefault();
-        }, { passive: false });
 
-        // Joystick Event Listeners
-        if (joystickContainer && joystickKnob) {
-            joystickContainer.addEventListener('touchstart', (e) => {
-                const rect = joystickContainer.getBoundingClientRect();
-                this.joystickStartPos = {
-                    x: rect.left + rect.width / 2,
-                    y: rect.top + rect.height / 2
-                };
-                this.isJoystickActive = true;
-                e.stopPropagation();
-            });
+            if (this.isJoystickActive && this.joystickTouchId !== null) {
+                // Find the specific touch for the joystick
+                let joystickTouch: Touch | null = null;
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === this.joystickTouchId) {
+                        joystickTouch = e.touches[i];
+                        break;
+                    }
+                }
 
-            window.addEventListener('touchmove', (e) => {
-                if (!this.isJoystickActive) return;
-
-                const touch = e.touches[0]; // Simplified: just track the first touch
-
-                if (touch) {
-                    const dx = touch.clientX - this.joystickStartPos.x;
-                    const dy = touch.clientY - this.joystickStartPos.y;
+                if (joystickTouch) {
+                    const dx = joystickTouch.clientX - this.joystickStartPos.x;
+                    const dy = joystickTouch.clientY - this.joystickStartPos.y;
                     const angle = Math.atan2(dy, dx);
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
@@ -96,7 +105,7 @@ export class InputManager {
 
                     joystickKnob.style.transform = `translate(${moveX}px, ${moveY}px)`;
 
-                    // Convert joystick vector to screen "target" for the engine
+                    // Convert joystick vector to world direction
                     const screenCenterX = window.innerWidth / 2;
                     const screenCenterY = window.innerHeight / 2;
                     this.onMove(
@@ -104,16 +113,30 @@ export class InputManager {
                         screenCenterY + Math.sin(angle) * 1000
                     );
                 }
-            });
+            }
 
-            window.addEventListener('touchend', () => {
-                if (this.isJoystickActive) {
+            // Prevent scrolling/refresh only if we are interacting with the game
+            if (this.controlMode === 'joystick' || this.controlMode === 'follow') {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        const endJoystick = (e: TouchEvent) => {
+            if (this.joystickTouchId === null) return;
+
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === this.joystickTouchId) {
                     this.isJoystickActive = false;
-                    joystickKnob.style.transform = `translate(0px, 0px)`;
-                    // Keep current target or stop? Usually keep last direction in IO games
+                    this.joystickTouchId = null;
+                    joystickContainer.style.display = 'none';
+                    joystickKnob.style.transform = 'translate(0px, 0px)';
+                    break;
                 }
-            });
-        }
+            }
+        };
+
+        window.addEventListener('touchend', endJoystick);
+        window.addEventListener('touchcancel', endJoystick);
     }
 
     private initUI() {

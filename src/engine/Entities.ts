@@ -13,6 +13,7 @@ export interface EntityState {
     type: 'player' | 'bot' | 'food' | 'virus' | 'obstacle';
     name?: string;
     skin?: string;
+    team?: 'red' | 'blue';
 }
 
 export abstract class Entity {
@@ -25,6 +26,7 @@ export abstract class Entity {
     type: 'player' | 'bot' | 'food' | 'virus' | 'obstacle';
     name?: string;
     skin?: string;
+    team?: 'red' | 'blue';
 
     friction: number = 0.98;
 
@@ -38,6 +40,7 @@ export abstract class Entity {
         this.type = state.type;
         this.name = state.name;
         this.skin = state.skin;
+        this.team = state.team;
     }
 
     update(dt: number) {
@@ -119,14 +122,67 @@ export class Blob extends Entity {
         super.update(dt);
     }
 
+    private static skinCache: Map<string, HTMLImageElement> = new Map();
+
     draw(ctx: CanvasRenderingContext2D, _camera: { x: number, y: number, scale: number }) {
         ctx.save();
 
-        // Draw blob body
+        // Check for image skin
+        const imageSkins = ['doge', 'bunny', 'alien_face'];
+        if (this.skin && imageSkins.includes(this.skin)) {
+            let img = Blob.skinCache.get(this.skin);
+            if (!img) {
+                img = new Image();
+                img.src = `/skins/${this.skin}.png`;
+                Blob.skinCache.set(this.skin, img);
+            }
+
+            if (img.complete && img.naturalWidth !== 0) {
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(
+                    img,
+                    this.position.x - this.radius,
+                    this.position.y - this.radius,
+                    this.radius * 2,
+                    this.radius * 2
+                );
+                ctx.closePath();
+
+                // Draw border for image skins
+                ctx.beginPath();
+                ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = this.team ? (this.team === 'red' ? '#ef4444' : '#3b82f6') : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = this.team ? 6 : 2;
+                ctx.stroke();
+                ctx.closePath();
+            } else {
+                // Fallback while loading
+                this.drawDefault(ctx);
+            }
+        } else {
+            this.drawDefault(ctx);
+        }
+
+        // Draw name
+        if (this.name) {
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.max(12, this.radius / 2)}px Inter, system-ui`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'black';
+            ctx.fillText(this.name, this.position.x, this.position.y);
+        }
+
+        ctx.restore();
+    }
+
+    private drawDefault(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
 
-        // Skin logic
         if (this.skin === 'neon') {
             ctx.fillStyle = this.color;
             ctx.shadowBlur = 20;
@@ -154,23 +210,10 @@ export class Blob extends Entity {
         }
 
         ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = this.team ? (this.team === 'red' ? '#ef4444' : '#3b82f6') : 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = this.team ? 6 : 2;
         ctx.stroke();
         ctx.closePath();
-
-        // Draw name
-        if (this.name) {
-            ctx.fillStyle = 'white';
-            ctx.font = `bold ${Math.max(12, this.radius / 2)}px Inter, system-ui`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.shadowBlur = 5;
-            ctx.shadowColor = 'black';
-            ctx.fillText(this.name, this.position.x, this.position.y);
-        }
-
-        ctx.restore();
     }
 }
 

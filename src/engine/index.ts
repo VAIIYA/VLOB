@@ -17,6 +17,9 @@ export class Game {
     private obstacles: Obstacle[] = [];
     private isEditorMode: boolean = false;
     private selectedShape: ObstacleShape = 'RECT';
+    private isSpectating: boolean = false;
+    private startTime: number = Date.now();
+    private gameMode: 'ffa' | 'team' = 'ffa';
 
     constructor(canvas: HTMLCanvasElement, onGameOver: (stats: { mass: number }) => void) {
         this.canvas = canvas;
@@ -81,15 +84,17 @@ export class Game {
             const x = (Math.random() - 0.5) * this.worldSize;
             const y = (Math.random() - 0.5) * this.worldSize;
             const color = colors[Math.floor(Math.random() * colors.length)];
+            const team = this.gameMode === 'team' ? (Math.random() > 0.5 ? 'red' : 'blue') : undefined;
             this.entities.push(new Blob({
-                id: `bot-${i}`,
+                id: `bot-${Date.now()}-${i}`,
                 position: { x, y },
                 velocity: { x: 0, y: 0 },
                 mass: 15 + Math.random() * 25,
                 radius: 0,
                 color,
                 type: 'bot',
-                name: names[Math.floor(Math.random() * names.length)]
+                name: names[Math.floor(Math.random() * names.length)],
+                team: team as 'red' | 'blue' | undefined
             }));
         }
     }
@@ -125,6 +130,8 @@ export class Game {
     }
 
     private update(dt: number) {
+        if (this.isEditorMode) return;
+
         // Update power-up timers
         if (this.playerPowerUps.speed > 0) this.playerPowerUps.speed -= dt * 1000;
         if (this.playerPowerUps.shield > 0) this.playerPowerUps.shield -= dt * 1000;
@@ -175,6 +182,17 @@ export class Game {
             // Zoom out as total mass gets bigger
             const targetScale = Math.max(0.15, 1 / (1 + (Math.sqrt(totalMass) * 5 - 20) / 100));
             this.camera.scale += (targetScale - this.camera.scale) * 0.1;
+        } else if (this.isSpectating) {
+            // Camera follows the largest bot
+            const largestBot = this.entities
+                .filter(e => e instanceof Blob && e.type === 'bot')
+                .sort((a, b) => b.mass - a.mass)[0] as Blob;
+
+            if (largestBot) {
+                this.camera.x += (largestBot.position.x - this.camera.x) * 0.1;
+                this.camera.y += (largestBot.position.y - this.camera.y) * 0.1;
+                this.camera.scale += (0.5 - this.camera.scale) * 0.05;
+            }
         }
     }
 
@@ -213,6 +231,8 @@ export class Game {
 
             // Eat bots
             bots.forEach(bot => {
+                if (this.gameMode === 'team' && blob.team === bot.team && blob.team !== undefined) return;
+
                 const dx = blob.position.x - bot.position.x;
                 const dy = blob.position.y - bot.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -250,6 +270,9 @@ export class Game {
             // Merge with other player blobs
             this.playerBlobs.forEach(other => {
                 if (blob === other) return;
+                // Important: Ensure blob is still in the game (hasn't been eaten by another one in this frame loop)
+                if (!this.playerBlobs.includes(blob) || !this.playerBlobs.includes(other)) return;
+
                 const dx = blob.position.x - other.position.x;
                 const dy = blob.position.y - other.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -260,9 +283,12 @@ export class Game {
 
                 if (dist < (blob.radius + other.radius) * 0.8) {
                     if (canMerge) {
-                        blob.addMass(other.mass);
-                        this.playerBlobs = this.playerBlobs.filter(b => b !== other);
-                        this.entities = this.entities.filter(e => e !== other);
+                        // Make the larger or elder blob the eater to be consistent
+                        if (blob.mass >= other.mass) {
+                            blob.addMass(other.mass);
+                            this.playerBlobs = this.playerBlobs.filter(b => b !== other);
+                            this.entities = this.entities.filter(e => e !== other);
+                        }
                     } else {
                         // Collision/Pushing logic
                         const angle = Math.atan2(dy, dx);
@@ -300,6 +326,8 @@ export class Game {
         bots.forEach(bot => {
             bots.forEach(other => {
                 if (bot === other) return;
+                if (this.gameMode === 'team' && bot.team === other.team && bot.team !== undefined) return;
+
                 const dx = bot.position.x - other.position.x;
                 const dy = bot.position.y - other.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -326,22 +354,33 @@ export class Game {
     }
 
     private handleGameOver() {
-        const finalMass = this.getPlayerMass();
-        this.onGameOver({ mass: finalMass });
+        if (this.isSpectating) return;
 
+        const finalMass = this.getPlayerMass();
+        const timeAlive = Math.floor((Date.now() - this.startTime) / 1000);
+        this.onGameOver({ mass: finalMass, timeAlive } as any);
+
+        this.isSpectating = true;
+    }
+
+    public respawn() {
+        const team = this.gameMode === 'team' ? (Math.random() > 0.5 ? 'red' : 'blue') : undefined;
         const player = new Blob({
             id: `player-${Date.now()}`,
             position: { x: (Math.random() - 0.5) * 1000, y: (Math.random() - 0.5) * 1000 },
             velocity: { x: 0, y: 0 },
             mass: 25,
             radius: 0,
-            color: this.playerBlobs[0]?.color || '#3b82f6',
+            color: '#3b82f6',
             type: 'player',
             name: this.playerBlobs[0]?.name || 'YOU',
-            skin: this.playerBlobs[0]?.skin
+            skin: this.playerBlobs[0]?.skin,
+            team: team as 'red' | 'blue' | undefined
         });
         this.playerBlobs = [player];
         this.entities.push(player);
+        this.isSpectating = false;
+        this.startTime = Date.now();
     }
 
     private draw() {
@@ -392,6 +431,16 @@ export class Game {
 
     public setPlayerName(name: string) {
         this.playerBlobs.forEach(b => b.name = name);
+    }
+
+    public setGameMode(mode: 'ffa' | 'team') {
+        this.gameMode = mode;
+        // Re-assign teams to all bots
+        this.entities.forEach(e => {
+            if (e instanceof Blob && e.type === 'bot') {
+                e.team = mode === 'team' ? (Math.random() > 0.5 ? 'red' : 'blue') : undefined;
+            }
+        });
     }
 
     public setPlayerSkin(skin: string) {
@@ -479,7 +528,9 @@ export class Game {
                 radius: 0,
                 color: blob.color,
                 type: 'player',
-                name: blob.name
+                name: blob.name,
+                skin: blob.skin,
+                team: blob.team
             });
             this.playerBlobs.push(piece);
             this.entities.push(piece);

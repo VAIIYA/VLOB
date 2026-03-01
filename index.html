@@ -9,6 +9,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>VLOB - Smooth Agar.io Clone</title>
+  <!-- Google Adsense -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8049952818757963"
+    crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -35,7 +38,6 @@
         </div>
       </div>
 
-
       <div class="score-display">
         Mass: <span id="scoreValue">0</span>
       </div>
@@ -52,6 +54,25 @@
     </div>
 
     <div id="menu">
+      <!-- Mobile Sidebar Toggle -->
+      <button id="sidebarToggle" class="sidebar-toggle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <!-- Global Leaderboards (Desktop Sidebar) -->
+      <div id="globalLeaderboards" class="global-leaderboards">
+        <div class="lb-section">
+          <h3>🏆 Top Mass</h3>
+          <div id="massLeaderboard" class="lb-list">Loading...</div>
+        </div>
+        <div class="lb-section">
+          <h3>⚔️ Top Kills</h3>
+          <div id="killLeaderboard" class="lb-list">Loading...</div>
+        </div>
+      </div>
+
       <div class="menu-card">
         <h1>VLOB</h1>
         <div id="authSection">
@@ -66,49 +87,69 @@
         </div>
         <input type="text" id="playerName" placeholder="Guest" maxlength="15" value="" />
 
-        <div class="control-settings">
-          <h4>Choose controls</h4>
-          <div class="control-options">
-            <div class="control-option active" id="controlFollow">
-              <div class="icon-placeholder">👆</div>
-              <span>Follow</span>
-            </div>
-            <div class="control-option" id="controlJoystick">
-              <div class="icon-placeholder">🕹️</div>
-              <span>Joystick</span>
-            </div>
-          </div>
-
-          <h4>Buttons position</h4>
-          <div class="position-settings">
-            <label class="position-option">
-              <input type="radio" name="btnPos" value="left" id="posLeft"> Left
-            </label>
-            <label class="position-option">
-              <input type="radio" name="btnPos" value="right" id="posRight" checked> Right
-            </label>
-          </div>
-          <h4>Skin</h4>
-          <div class="skin-options">
-            <div class="skin-option active" data-skin="default" style="background: #3b82f6;"></div>
-            <div class="skin-option" data-skin="neon"
-              style="background: linear-gradient(45deg, #3b82f6, #60a5fa); box-shadow: 0 0 10px #3b82f6;"></div>
-            <div class="skin-option" data-skin="alien" style="background: radial-gradient(circle, #4ade80, #166534);">
-            </div>
-            <div class="skin-option" data-skin="core" style="background: #1e293b; border: 2px solid #3b82f6;"></div>
-            <div class="skin-option" data-skin="ghost" style="background: rgba(59, 130, 246, 0.5);"></div>
-          </div>
+        <div class="position-settings">
+          <label class="position-option">
+            <input type="radio" name="btnPos" value="left" id="posLeft"> Left
+          </label>
+          <label class="position-option">
+            <input type="radio" name="btnPos" value="right" id="posRight" checked> Right
+          </label>
         </div>
 
-        <button class="play-btn" id="playBtn" style="margin-bottom: 10px;">Play</button>
-        <button class="solana-btn" id="createMapBtn" style="display: none; background: #8b5cf6; color: white;">Create
-          Map (Dev Only)</button>
-        <div class="controls-hint">
-          Desktop: Mouse to move, Space to Split, E to Eject<br>
-          Mobile: Touch to move
+        <h4>Game Mode</h4>
+        <div class="mode-settings">
+          <div class="mode-option active" id="modeFFA" data-mode="ffa">FFA</div>
+          <div class="mode-option" id="modeTeam" data-mode="team">Team</div>
+        </div>
+        <h4>Skin</h4>
+        <div class="skin-options">
+          <div class="skin-option active" data-skin="default" style="background: #3b82f6;"></div>
+          <div class="skin-option" data-skin="neon" style="background: linear-gradient(45deg, #3b82f6, #60a5fa);">
+          </div>
+          <div class="skin-option" data-skin="doge"
+            style="background-image: url('/skins/doge.png'); background-size: cover;"></div>
+          <div class="skin-option" data-skin="bunny"
+            style="background-image: url('/skins/bunny.png'); background-size: cover;"></div>
+          <div class="skin-option" data-skin="alien_face"
+            style="background-image: url('/skins/alien_face.png'); background-size: cover;"></div>
         </div>
       </div>
+
+      <button class="play-btn" id="playBtn" style="margin-bottom: 10px;">Play</button>
+      <button class="solana-btn" id="createMapBtn" style="display: none; background: #8b5cf6; color: white;">Create
+        Map (Dev Only)</button>
+      <div class="controls-hint">
+        Desktop: Mouse to move, Space to Split, E to Eject<br>
+        Mobile: Touch to move
+      </div>
+
+      <!-- Google Adsense Banner -->
+      <div class="ad-banner-container">
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8049952818757963"
+          data-ad-slot="8049952818" data-ad-format="auto" data-full-width-responsive="true"></ins>
+        <script>
+          (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+      </div>
     </div>
+  </div>
+
+  <!-- Death Popup -->
+  <div id="deathPopup" class="death-popup" style="display: none;">
+    <div class="popup-card">
+      <h2>DEFEATED</h2>
+      <div class="death-stats">
+        <p>Final Mass: <span id="deathMass">0</span></p>
+        <p>Time Alive: <span id="deathTime">0s</span></p>
+      </div>
+      <div class="popup-actions">
+        <button id="respawnBtn" class="play-btn">RESTART</button>
+        <button id="observeBtn" class="solana-btn" style="background: #2563eb;">OBSERVE</button>
+        <button id="quitBtn" class="solana-btn danger">QUIT</button>
+      </div>
+    </div>
+  </div>
+  </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
