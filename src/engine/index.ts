@@ -277,25 +277,33 @@ export class Game {
                 const dy = blob.position.y - other.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                // Merging logic: both blobs must be old enough
                 const now = Date.now();
                 const canMerge = (now - blob.splitTimestamp > 15000) && (now - other.splitTimestamp > 15000);
 
-                if (dist < (blob.radius + other.radius) * 0.8) {
-                    if (canMerge) {
+                const minClearance = blob.radius + other.radius;
+
+                if (canMerge) {
+                    if (dist < minClearance * 0.8) {
                         // Make the larger or elder blob the eater to be consistent
                         if (blob.mass >= other.mass) {
                             blob.addMass(other.mass);
                             this.playerBlobs = this.playerBlobs.filter(b => b !== other);
                             this.entities = this.entities.filter(e => e !== other);
                         }
-                    } else {
-                        // Collision/Pushing logic
-                        const angle = Math.atan2(dy, dx);
-                        const pushDist = (blob.radius + other.radius) - dist;
-                        other.position.x -= Math.cos(angle) * pushDist * 0.1;
-                        other.position.y -= Math.sin(angle) * pushDist * 0.1;
                     }
+                } else if (dist < minClearance) {
+                    // Collision/Pushing logic to prevent overlap
+                    // Ensure dist is not strictly 0 to avoid division by zero
+                    const safeDist = dist === 0 ? 0.01 : dist;
+                    const angle = Math.atan2(dy, dx);
+                    const pushDist = minClearance - safeDist;
+
+                    // Push both apart evenly, very firmly (0.5 means they resolve the overlap almost instantly)
+                    const pushFactor = 0.5;
+                    blob.position.x += Math.cos(angle) * pushDist * 0.5 * pushFactor;
+                    blob.position.y += Math.sin(angle) * pushDist * 0.5 * pushFactor;
+                    other.position.x -= Math.cos(angle) * pushDist * 0.5 * pushFactor;
+                    other.position.y -= Math.sin(angle) * pushDist * 0.5 * pushFactor;
                 }
             });
 
