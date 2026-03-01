@@ -8,9 +8,17 @@ const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menu = document.getElementById('menu') as HTMLDivElement;
 const playBtn = document.getElementById('playBtn') as HTMLButtonElement;
 const playerNameInput = document.getElementById('playerName') as HTMLInputElement;
+
+// Control Settings Wiring
+const controlFollow = document.getElementById('controlFollow');
+const controlJoystick = document.getElementById('controlJoystick');
+const posLeft = document.getElementById('posLeft') as HTMLInputElement;
+const posRight = document.getElementById('posRight') as HTMLInputElement;
+
 const scoreValue = document.getElementById('scoreValue') as HTMLSpanElement;
 
 let game: Game | null = null;
+let inputManager: InputManager | null = null; // Declare inputManager globally
 
 const leaderboardList = document.getElementById('leaderboardList') as HTMLDivElement;
 
@@ -21,6 +29,49 @@ const displayLevel = document.getElementById('displayLevel') as HTMLSpanElement;
 const displayWins = document.getElementById('displayWins') as HTMLSpanElement;
 
 let currentUser: UserProfile | null = null;
+
+// Initial build
+game = new Game(canvas, async (stats) => {
+  // Handle Game Over
+  if (currentUser) {
+    currentUser.losses += 1;
+    currentUser.total_mass += stats.mass;
+    // Simple level up logic
+    currentUser.level = Math.floor(currentUser.total_mass / 5000) + 1;
+
+    await updateUserProfile(currentUser);
+
+    // Update UI
+    displayLevel.textContent = `Lvl ${currentUser.level}`;
+    displayWins.textContent = `Wins: ${currentUser.wins}`;
+  }
+});
+
+inputManager = new InputManager({
+  onMove: (x, y) => game?.setPlayerTarget(x, y),
+  onSplit: () => game?.split(),
+  onEject: () => game?.ejectMass()
+});
+
+controlFollow?.addEventListener('click', () => {
+  controlFollow.classList.add('active');
+  controlJoystick?.classList.remove('active');
+  inputManager?.setControlMode('follow');
+});
+
+controlJoystick?.addEventListener('click', () => {
+  controlJoystick.classList.add('active');
+  controlFollow?.classList.remove('active');
+  inputManager?.setControlMode('joystick');
+});
+
+posLeft?.addEventListener('change', () => {
+  if (posLeft.checked) inputManager?.setButtonPosition('left');
+});
+
+posRight?.addEventListener('change', () => {
+  if (posRight.checked) inputManager?.setButtonPosition('right');
+});
 
 async function handleLogin() {
   const wallet = await auth.connect();

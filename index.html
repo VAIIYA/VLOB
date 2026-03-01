@@ -24,6 +24,16 @@
       <div class="score-display">
         Mass: <span id="scoreValue">0</span>
       </div>
+
+      <!-- Mobile Controls -->
+      <div id="joystickContainer" class="joystick-container">
+        <div id="joystickKnob" class="joystick-knob"></div>
+      </div>
+
+      <div id="actionButtons" class="action-buttons">
+        <div id="throwBtn" class="btn-circle btn-throw">THROW</div>
+        <div id="splitBtn" class="btn-circle btn-split">SPLIT</div>
+      </div>
     </div>
 
     <div id="menu">
@@ -40,6 +50,31 @@
           </div>
         </div>
         <input type="text" id="playerName" placeholder="Enter Name" maxlength="15" value="Guest" />
+        
+        <div class="control-settings">
+          <h4>Choose controls</h4>
+          <div class="control-options">
+            <div class="control-option active" id="controlFollow">
+              <div class="icon-placeholder">👆</div>
+              <span>Follow</span>
+            </div>
+            <div class="control-option" id="controlJoystick">
+              <div class="icon-placeholder">🕹️</div>
+              <span>Joystick</span>
+            </div>
+          </div>
+
+          <h4>Buttons position</h4>
+          <div class="position-settings">
+            <label class="position-option">
+              <input type="radio" name="btnPos" value="left" id="posLeft"> Left
+            </label>
+            <label class="position-option">
+              <input type="radio" name="btnPos" value="right" id="posRight" checked> Right
+            </label>
+          </div>
+        </div>
+
         <button class="play-btn" id="playBtn">Play</button>
         <div class="controls-hint">
           Desktop: Mouse to move, Space to Split, W to Eject<br>

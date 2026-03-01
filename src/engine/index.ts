@@ -1,4 +1,4 @@
-import { Blob, Entity, Food } from './Entities';
+import { Blob, Entity, Food, Virus } from './Entities';
 
 export class Game {
     private canvas: HTMLCanvasElement;
@@ -37,6 +37,8 @@ export class Game {
         this.spawnFood(200);
         // Initial bots
         this.spawnBots(10);
+        // Initial viruses
+        this.spawnViruses(15);
 
         requestAnimationFrame(this.loop.bind(this));
     }
@@ -73,6 +75,14 @@ export class Game {
                 type: 'bot',
                 name: names[Math.floor(Math.random() * names.length)]
             }));
+        }
+    }
+
+    private spawnViruses(count: number) {
+        for (let i = 0; i < count; i++) {
+            const x = (Math.random() - 0.5) * (this.worldSize - 200);
+            const y = (Math.random() - 0.5) * (this.worldSize - 200);
+            this.entities.push(new Virus(`virus-${Date.now()}-${i}`, x, y));
         }
     }
 
@@ -143,6 +153,7 @@ export class Game {
     private checkCollisions() {
         const food = this.entities.filter(e => e instanceof Food) as Food[];
         const bots = this.entities.filter(e => e instanceof Blob && e.type === 'bot') as Blob[];
+        const viruses = this.entities.filter(e => e instanceof Virus) as Virus[];
 
         this.playerBlobs.forEach(blob => {
             // Eat food
@@ -173,6 +184,21 @@ export class Game {
                     // Bot eats player blob
                     this.playerBlobs = this.playerBlobs.filter(b => b !== blob);
                     this.entities = this.entities.filter(e => e !== blob);
+                }
+            });
+
+            // Hit viruses
+            viruses.forEach(virus => {
+                const dx = blob.position.x - virus.position.x;
+                const dy = blob.position.y - virus.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < blob.radius && blob.mass > virus.mass * 1.1) {
+                    // Split the player when hitting a virus
+                    this.explodeBlob(blob);
+                    // Virus disappears and respawns
+                    this.entities = this.entities.filter(e => e !== virus);
+                    this.spawnViruses(1);
                 }
             });
 
@@ -342,6 +368,40 @@ export class Game {
             this.playerBlobs.push(b);
             this.entities.push(b);
         });
+    }
+
+    private explodeBlob(blob: Blob) {
+        if (this.playerBlobs.length >= 16) return;
+
+        const maxPieces = 8;
+        const currentPieces = this.playerBlobs.length;
+        const canCreate = Math.min(maxPieces, 16 - currentPieces);
+
+        if (canCreate <= 1) return;
+
+        const pieceMass = blob.mass / canCreate;
+        blob.mass = pieceMass;
+        blob.calculateRadius();
+        blob.splitTimestamp = Date.now();
+
+        for (let i = 0; i < canCreate - 1; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const piece = new Blob({
+                id: `player-explode-${Date.now()}-${i}`,
+                position: { ...blob.position },
+                velocity: {
+                    x: Math.cos(angle) * 500,
+                    y: Math.sin(angle) * 500
+                },
+                mass: pieceMass,
+                radius: 0,
+                color: blob.color,
+                type: 'player',
+                name: blob.name
+            });
+            this.playerBlobs.push(piece);
+            this.entities.push(piece);
+        }
     }
 
     public ejectMass() {

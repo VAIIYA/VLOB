@@ -145,3 +145,44 @@ export class Blob extends Entity {
         ctx.restore();
     }
 }
+
+export class Virus extends Entity {
+    constructor(id: string, x: number, y: number) {
+        super({
+            id,
+            position: { x, y },
+            velocity: { x: 0, y: 0 },
+            mass: 50,
+            radius: 0,
+            color: '#22c55e',
+            type: 'virus'
+        });
+        this.calculateRadius();
+        this.radius *= 1.2; // Viruses look bigger
+    }
+
+    draw(ctx: CanvasRenderingContext2D, _camera: { x: number, y: number, scale: number }) {
+        ctx.save();
+        ctx.beginPath();
+        const spikes = 20;
+        const innerRadius = this.radius * 0.8;
+        const outerRadius = this.radius;
+
+        for (let i = 0; i < spikes * 2; i++) {
+            const angle = (i * Math.PI) / spikes;
+            const r = i % 2 === 0 ? outerRadius : innerRadius;
+            const x = this.position.x + Math.cos(angle) * r;
+            const y = this.position.y + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.strokeStyle = '#15803d';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+    }
+}
