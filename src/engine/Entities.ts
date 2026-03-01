@@ -24,6 +24,8 @@ export abstract class Entity {
     type: 'player' | 'bot' | 'food' | 'virus';
     name?: string;
 
+    friction: number = 0.98;
+
     constructor(state: EntityState) {
         this.id = state.id;
         this.position = { ...state.position };
@@ -38,6 +40,10 @@ export abstract class Entity {
     update(dt: number) {
         this.position.x += this.velocity.x * dt;
         this.position.y += this.velocity.y * dt;
+
+        // Apply friction to velocity
+        this.velocity.x *= Math.pow(this.friction, dt * 60);
+        this.velocity.y *= Math.pow(this.friction, dt * 60);
     }
 
     abstract draw(ctx: CanvasRenderingContext2D, camera: { x: number, y: number, scale: number }): void;
@@ -79,9 +85,12 @@ export class Blob extends Entity {
     target: Vector = { x: 0, y: 0 };
     speed: number = 200;
 
+    splitTimestamp: number = 0;
+
     constructor(state: EntityState) {
         super(state);
         this.calculateRadius();
+        this.splitTimestamp = Date.now();
     }
 
     update(dt: number) {

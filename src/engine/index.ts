@@ -5,9 +5,10 @@ export class Game {
     private ctx: CanvasRenderingContext2D;
     private lastTime: number = 0;
     private entities: Entity[] = [];
-    private player: Blob;
+    private playerBlobs: Blob[] = [];
     private camera = { x: 0, y: 0, scale: 1 };
     private worldSize = 5000;
+    private mousePos = { x: 0, y: 0 };
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -16,18 +17,19 @@ export class Game {
         window.addEventListener('resize', () => this.resize());
 
         // Initialize player
-        this.player = new Blob({
+        const player = new Blob({
             id: 'player-1',
             position: { x: 0, y: 0 },
             velocity: { x: 0, y: 0 },
-            mass: 10,
+            mass: 15,
             radius: 0,
             color: '#3b82f6',
             type: 'player',
             name: 'YOU'
         });
 
-        this.entities.push(this.player);
+        this.playerBlobs.push(player);
+        this.entities.push(player);
 
         // Initial food
         this.spawnFood(200);
@@ -87,13 +89,18 @@ export class Game {
         // For now, let's just make it follow mouse directly if we have events
 
         this.entities.forEach(entity => {
-            if (entity instanceof Blob && entity.type === 'bot') {
-                // Simple bot logic: wander around
-                if (Math.random() < 0.01) {
-                    entity.target = {
-                        x: entity.position.x + (Math.random() - 0.5) * 500,
-                        y: entity.position.y + (Math.random() - 0.5) * 500
-                    };
+            if (entity instanceof Blob) {
+                if (entity.type === 'bot') {
+                    // Simple bot logic: wander around
+                    if (Math.random() < 0.01) {
+                        entity.target = {
+                            x: entity.position.x + (Math.random() - 0.5) * 500,
+                            y: entity.position.y + (Math.random() - 0.5) * 500
+                        };
+                    }
+                } else if (entity.type === 'player') {
+                    // Follow mouse
+                    entity.target = this.mouseToWorld(this.mousePos.x, this.mousePos.y);
                 }
             }
             entity.update(dt);
@@ -102,20 +109,35 @@ export class Game {
         // Handle collisions
         this.checkCollisions();
 
-        // Camera follow player
-        this.camera.x = this.player.position.x;
-        this.camera.y = this.player.position.y;
+        // Camera follow group center
+        if (this.playerBlobs.length > 0) {
+            let avgX = 0, avgY = 0, totalMass = 0;
+            this.playerBlobs.forEach(b => {
+                avgX += b.position.x * b.mass;
+                avgY += b.position.y * b.mass;
+                totalMass += b.mass;
+            });
+            this.camera.x = avgX / totalMass;
+            this.camera.y = avgY / totalMass;
 
-        // Zoom out as player gets bigger
-        const targetScale = Math.max(0.2, 1 / (1 + (this.player.radius - 20) / 100));
-        this.camera.scale += (targetScale - this.camera.scale) * 0.1;
+            // Zoom out as total mass gets bigger
+            const targetScale = Math.max(0.15, 1 / (1 + (Math.sqrt(totalMass) * 5 - 20) / 100));
+            this.camera.scale += (targetScale - this.camera.scale) * 0.1;
+        }
+    }
+
+    private mouseToWorld(x: number, y: number) {
+        return {
+            x: (x - this.canvas.width / 2) / this.camera.scale + this.camera.x,
+            y: (y - this.canvas.height / 2) / this.camera.scale + this.camera.y
+        };
     }
 
     private checkCollisions() {
-        const blobs = this.entities.filter(e => e instanceof Blob) as Blob[];
         const food = this.entities.filter(e => e instanceof Food) as Food[];
+        const bots = this.entities.filter(e => e instanceof Blob && e.type === 'bot') as Blob[];
 
-        blobs.forEach(blob => {
+        this.playerBlobs.forEach(blob => {
             // Eat food
             for (let i = food.length - 1; i >= 0; i--) {
                 const item = food[i];
@@ -126,33 +148,90 @@ export class Game {
                 if (dist < blob.radius) {
                     blob.addMass(item.mass);
                     this.entities = this.entities.filter(e => e !== item);
-                    // Respawn food
                     this.spawnFood(1);
                 }
             }
 
-            // Eat other blobs
-            blobs.forEach(other => {
+            // Eat bots
+            bots.forEach(bot => {
+                const dx = blob.position.x - bot.position.x;
+                const dy = blob.position.y - bot.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < blob.radius && blob.mass > bot.mass * 1.1) {
+                    blob.addMass(bot.mass);
+                    this.entities = this.entities.filter(e => e !== bot);
+                    this.spawnBots(1);
+                } else if (dist < bot.radius && bot.mass > blob.mass * 1.1) {
+                    // Bot eats player blob
+                    this.playerBlobs = this.playerBlobs.filter(b => b !== blob);
+                    this.entities = this.entities.filter(e => e !== blob);
+                }
+            });
+
+            // Merge with other player blobs
+            this.playerBlobs.forEach(other => {
                 if (blob === other) return;
                 const dx = blob.position.x - other.position.x;
                 const dy = blob.position.y - other.position.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < blob.radius && blob.mass > other.mass * 1.1) {
-                    blob.addMass(other.mass);
-                    this.entities = this.entities.filter(e => e !== other);
-                    if (other === this.player) {
-                        console.log("GAME OVER");
-                        // Reset player for now
-                        this.player.mass = 10;
-                        this.player.calculateRadius();
-                        this.player.position = { x: 0, y: 0 };
+                // Merging logic: both blobs must be old enough
+                const now = Date.now();
+                const canMerge = (now - blob.splitTimestamp > 15000) && (now - other.splitTimestamp > 15000);
+
+                if (dist < (blob.radius + other.radius) * 0.8) {
+                    if (canMerge) {
+                        blob.addMass(other.mass);
+                        this.playerBlobs = this.playerBlobs.filter(b => b !== other);
+                        this.entities = this.entities.filter(e => e !== other);
                     } else {
-                        this.spawnBots(1);
+                        // Collision/Pushing logic
+                        const angle = Math.atan2(dy, dx);
+                        const pushDist = (blob.radius + other.radius) - dist;
+                        other.position.x -= Math.cos(angle) * pushDist * 0.1;
+                        other.position.y -= Math.sin(angle) * pushDist * 0.1;
                     }
                 }
             });
         });
+
+        // Bot vs Bot collisions
+        bots.forEach(bot => {
+            bots.forEach(other => {
+                if (bot === other) return;
+                const dx = bot.position.x - other.position.x;
+                const dy = bot.position.y - other.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < bot.radius && bot.mass > other.mass * 1.1) {
+                    bot.addMass(other.mass);
+                    this.entities = this.entities.filter(e => e !== other);
+                    this.spawnBots(1);
+                }
+            });
+        });
+
+        // Check for Game Over
+        if (this.playerBlobs.length === 0) {
+            this.handleGameOver();
+        }
+    }
+
+    private handleGameOver() {
+        console.log("GAME OVER");
+        const player = new Blob({
+            id: `player-${Date.now()}`,
+            position: { x: (Math.random() - 0.5) * 1000, y: (Math.random() - 0.5) * 1000 },
+            velocity: { x: 0, y: 0 },
+            mass: 15,
+            radius: 0,
+            color: '#3b82f6',
+            type: 'player',
+            name: 'YOU'
+        });
+        this.playerBlobs = [player];
+        this.entities.push(player);
     }
 
     private draw() {
@@ -198,18 +277,15 @@ export class Game {
     }
 
     public setPlayerTarget(x: number, y: number) {
-        // Convert screen center-relative mouse to world coordinates
-        const worldX = (x - this.canvas.width / 2) / this.camera.scale + this.camera.x;
-        const worldY = (y - this.canvas.height / 2) / this.camera.scale + this.camera.y;
-        this.player.target = { x: worldX, y: worldY };
+        this.mousePos = { x, y };
     }
 
     public setPlayerName(name: string) {
-        this.player.name = name;
+        this.playerBlobs.forEach(b => b.name = name);
     }
 
     public getPlayerMass(): number {
-        return Math.floor(this.player.mass);
+        return Math.floor(this.playerBlobs.reduce((sum, b) => sum + b.mass, 0));
     }
 
     public getLeaderboard() {
@@ -221,18 +297,68 @@ export class Game {
     }
 
     public split() {
-        // Implementation for splitting the player blob
-        // This would involve creating a new blob with half the player's mass
-        // and giving it an initial velocity away from the original blob.
-        // For now, it's a placeholder.
-        console.log("Player split action triggered.");
+        if (this.playerBlobs.length >= 16) return;
+
+        const newBlobs: Blob[] = [];
+        this.playerBlobs.forEach(blob => {
+            if (blob.mass >= 35) {
+                const halfMass = blob.mass / 2;
+                blob.mass = halfMass;
+                blob.calculateRadius();
+                blob.splitTimestamp = Date.now();
+
+                const mouseWorld = this.mouseToWorld(this.mousePos.x, this.mousePos.y);
+                const angle = Math.atan2(mouseWorld.y - blob.position.y, mouseWorld.x - blob.position.x);
+
+                const splitBlob = new Blob({
+                    id: `player-${Date.now()}-${Math.random()}`,
+                    position: { ...blob.position },
+                    velocity: {
+                        x: Math.cos(angle) * 800,
+                        y: Math.sin(angle) * 800
+                    },
+                    mass: halfMass,
+                    radius: 0,
+                    color: blob.color,
+                    type: 'player',
+                    name: blob.name
+                });
+
+                newBlobs.push(splitBlob);
+            }
+        });
+
+        newBlobs.forEach(b => {
+            this.playerBlobs.push(b);
+            this.entities.push(b);
+        });
     }
 
     public ejectMass() {
-        // Implementation for ejecting mass from the player blob
-        // This would involve reducing player's mass and creating a small food pellet
-        // in the direction of player's movement or target.
-        // For now, it's a placeholder.
-        console.log("Player eject mass action triggered.");
+        this.playerBlobs.forEach(blob => {
+            if (blob.mass >= 35) {
+                const ejectMass = 15;
+                blob.mass -= ejectMass;
+                blob.calculateRadius();
+
+                const mouseWorld = this.mouseToWorld(this.mousePos.x, this.mousePos.y);
+                const angle = Math.atan2(mouseWorld.y - blob.position.y, mouseWorld.x - blob.position.x);
+
+                const food = new Food(
+                    `food-eject-${Date.now()}-${Math.random()}`,
+                    blob.position.x + Math.cos(angle) * (blob.radius + 20),
+                    blob.position.y + Math.sin(angle) * (blob.radius + 20),
+                    blob.color
+                );
+                food.mass = ejectMass * 0.8;
+                food.calculateRadius();
+                food.velocity = {
+                    x: Math.cos(angle) * 600,
+                    y: Math.sin(angle) * 600
+                };
+
+                this.entities.push(food);
+            }
+        });
     }
 }
