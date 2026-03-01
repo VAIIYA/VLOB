@@ -8,7 +8,7 @@ export class Game {
     private entities: Entity[] = [];
     private playerBlobs: Blob[] = [];
     private camera = { x: 0, y: 0, scale: 1 };
-    private worldSize = 5000;
+    private worldSize = 15000;
     private mousePos = { x: 0, y: 0 };
     private onGameOver: (stats: { mass: number }) => void;
     private playerPowerUps = {
@@ -57,10 +57,10 @@ export class Game {
 
         // Passive food spawning
         setInterval(() => {
-            if (this.entities.filter(e => e instanceof Food).length < 1000) {
-                this.spawnFood(5);
+            if (this.entities.filter(e => e instanceof Food).length < 3000) {
+                this.spawnFood(15);
             }
-        }, 1000);
+        }, 333);
     }
 
     private resize() {
@@ -104,7 +104,7 @@ export class Game {
         for (let i = 0; i < count; i++) {
             const x = (Math.random() - 0.5) * (this.worldSize - 200);
             const y = (Math.random() - 0.5) * (this.worldSize - 200);
-            const masses = [40, 70, 110]; // Small, Medium, Large
+            const masses = [40, 70, 110, 180]; // Small, Medium, Large, Extra Large
             const mass = masses[Math.floor(Math.random() * masses.length)];
             this.entities.push(new Virus(`virus-${Date.now()}-${i}`, x, y, mass));
         }
@@ -120,6 +120,8 @@ export class Game {
         }
     }
 
+    public isPaused: boolean = false;
+
     private loop(time: number) {
         const dt = (time - this.lastTime) / 1000;
         this.lastTime = time;
@@ -130,8 +132,17 @@ export class Game {
         requestAnimationFrame(this.loop.bind(this));
     }
 
+    public pause() {
+        this.isPaused = true;
+    }
+
+    public resume() {
+        this.isPaused = false;
+        this.lastTime = performance.now(); // Prevents huge delta time jump
+    }
+
     private update(dt: number) {
-        if (this.isEditorMode) return;
+        if (this.isEditorMode || this.isPaused) return;
 
         // Update power-up timers
         if (this.playerPowerUps.speed > 0) this.playerPowerUps.speed -= dt * 1000;
@@ -223,7 +234,7 @@ export class Game {
                         this.applyPowerUp(item.powerType);
                         this.entities = this.entities.filter(e => e !== item);
                         setTimeout(() => this.spawnPowerUps(1), 5000);
-                    } else {
+                    } else if (item instanceof Food) {
                         blob.addMass(item.mass);
                         SoundManager.playEatFood();
                         this.entities = this.entities.filter(e => e !== item);
@@ -390,6 +401,10 @@ export class Game {
             skin: this.playerBlobs[0]?.skin,
             team: team as 'red' | 'blue' | undefined
         });
+
+        // Remove strictly any existing player blobs from entities to fix the ghost bug
+        this.entities = this.entities.filter(e => !(e instanceof Blob && e.type === 'player'));
+
         this.playerBlobs = [player];
         this.entities.push(player);
         this.isSpectating = false;

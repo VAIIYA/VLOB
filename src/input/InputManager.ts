@@ -169,8 +169,8 @@ export class InputManager {
         const joystickContainer = document.getElementById('joystickContainer');
         const actionButtons = document.getElementById('actionButtons');
 
-        if (mode === 'joystick' || 'ontouchstart' in window) {
-            if (joystickContainer && mode === 'joystick') joystickContainer.style.display = 'flex';
+        if (mode === 'joystick') {
+            if (joystickContainer) joystickContainer.style.display = 'flex';
             if (actionButtons) actionButtons.style.display = 'flex';
         } else {
             if (joystickContainer) joystickContainer.style.display = 'none';

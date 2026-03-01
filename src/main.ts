@@ -35,8 +35,35 @@ let inputManager: InputManager | null = null; // Declare inputManager globally
 const loginBtn = document.getElementById('loginBtn') as HTMLButtonElement;
 const authSection = document.getElementById('authSection') as HTMLDivElement;
 const profileSection = document.getElementById('profileSection') as HTMLDivElement;
-const displayLevel = document.getElementById('displayLevel') as HTMLSpanElement;
-const displayWins = document.getElementById('displayWins') as HTMLSpanElement;
+const openProfileBtn = document.getElementById('openProfileBtn') as HTMLButtonElement;
+
+// Profile Modal Elements
+const profileModal = document.getElementById('profileModal') as HTMLDivElement;
+const closeProfileBtn = document.getElementById('closeProfileBtn') as HTMLButtonElement;
+const profileAvatar = document.getElementById('profileAvatar') as HTMLDivElement;
+const profileDisplayName = document.getElementById('profileDisplayName') as HTMLHeadingElement;
+const profileWalletDisplay = document.getElementById('profileWalletDisplay') as HTMLParagraphElement;
+
+const statWins = document.getElementById('statWins') as HTMLHeadingElement;
+const statLosses = document.getElementById('statLosses') as HTMLHeadingElement;
+const statMaxMass = document.getElementById('statMaxMass') as HTMLHeadingElement;
+const statKills = document.getElementById('statKills') as HTMLHeadingElement;
+
+const editDisplayName = document.getElementById('editDisplayName') as HTMLInputElement;
+const editTwitter = document.getElementById('editTwitter') as HTMLInputElement;
+const editYoutube = document.getElementById('editYoutube') as HTMLInputElement;
+const editBio = document.getElementById('editBio') as HTMLTextAreaElement;
+const saveProfileBtn = document.getElementById('saveProfileBtn') as HTMLButtonElement;
+
+const inventoryCount = document.getElementById('inventoryCount') as HTMLSpanElement;
+const inventoryGrid = document.getElementById('inventoryGrid') as HTMLDivElement;
+
+// Pause & Routing Elements
+const hamburgerMenuBtn = document.getElementById('hamburgerMenuBtn') as HTMLButtonElement;
+const pauseModal = document.getElementById('pauseModal') as HTMLDivElement;
+const resumeBtn = document.getElementById('resumeBtn') as HTMLButtonElement;
+const leaveGameBtn = document.getElementById('leaveGameBtn') as HTMLButtonElement;
+
 
 // Store UI Elements
 const openStoreBtn = document.getElementById('openStoreBtn') as HTMLButtonElement;
@@ -96,9 +123,6 @@ game = new Game(canvas, async (stats: any) => {
 
     currentUser.level = Math.floor(currentUser.total_mass / 5000) + 1;
     await updateUserProfile(currentUser);
-
-    displayLevel.textContent = `Lvl ${currentUser.level}`;
-    displayWins.textContent = `Wins: ${currentUser.wins}`;
   }
 });
 
@@ -112,7 +136,8 @@ inputManager = new InputManager({
   onEject: () => game?.ejectMass()
 });
 
-inputManager?.setControlMode('joystick'); // Force joystick mode for touch controls
+const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+inputManager?.setControlMode(isTouchDevice ? 'joystick' : 'follow');
 
 sidebarToggle?.addEventListener('click', () => {
   globalLeaderboards?.classList.toggle('active');
@@ -189,14 +214,133 @@ async function handleLogin() {
     if (profile) {
       currentUser = profile;
       playerNameInput.value = profile.username;
-      displayLevel.textContent = `Lvl ${profile.level}`;
-      displayWins.textContent = `Wins: ${profile.wins}`;
 
       authSection.style.display = 'none';
       profileSection.style.display = 'block';
     }
   }
 }
+
+// Profile Modal Logic
+function openProfileModal() {
+  if (!currentUser) return;
+
+  // Populate Header Stats
+  profileDisplayName.textContent = currentUser.username;
+  profileWalletDisplay.textContent = `${currentUser.wallet_address.substring(0, 5)}...${currentUser.wallet_address.substring(currentUser.wallet_address.length - 5)}`;
+
+  statWins.textContent = currentUser.wins.toString();
+  statLosses.textContent = currentUser.losses.toString();
+  statMaxMass.textContent = currentUser.max_mass.toString();
+  statKills.textContent = currentUser.kills.toString();
+
+  // Populate Settings
+  editDisplayName.value = currentUser.username;
+  editTwitter.value = currentUser.twitter || '';
+  editYoutube.value = currentUser.youtube || '';
+  editBio.value = currentUser.bio || '';
+
+  // Set active Avatar based on selected skin
+  const skinAsset = [...premiumSkins, ...freeSkins].find(s => s.id === selectedSkin);
+  if (skinAsset && skinAsset.type === 'image') {
+    profileAvatar.style.backgroundImage = `url('/skins/${skinAsset.id}.png')`;
+  } else {
+    profileAvatar.style.background = '#2a2a35'; // default dark
+  }
+
+  // Render Inventory (Owned Skins)
+  const defaultOwned = freeSkins.map(s => s.id);
+  const ownedSkinsIds = currentUser.owned_skins || defaultOwned;
+
+  const allSkins = [...premiumSkins, ...freeSkins];
+  const mySkins = allSkins.filter(s => ownedSkinsIds.includes(s.id));
+
+  inventoryCount.textContent = `${mySkins.length} ITEMS`;
+
+  inventoryGrid.innerHTML = mySkins.map(skin => {
+    const isEquipped = selectedSkin === skin.id;
+    return `
+      <div class="skin-card">
+        <div class="skin-preview" style="${skin.type === 'color' ? `background: ${(skin as any).value}` : skin.type === 'gradient' ? `background: ${(skin as any).value}` : `background-image: url('/skins/${skin.id}.png'); background-size: cover;`}"></div>
+        <h4>${skin.name}</h4>
+        <button class="solana-btn ${isEquipped ? 'btn-equipped' : 'btn-equip'}" data-skin-id="${skin.id}">
+          ${isEquipped ? 'Equipped' : 'Equip'}
+        </button>
+      </div>
+    `;
+  }).join('');
+
+  // Equip listeners within profile
+  inventoryGrid.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const skinId = (e.target as HTMLButtonElement).dataset.skinId;
+      if (skinId) {
+        selectedSkin = skinId;
+        if (game) game.setPlayerSkin(skinId);
+
+        // Update styling of the clicked button and others
+        inventoryGrid.querySelectorAll('button').forEach(b => {
+          b.classList.remove('btn-equipped');
+          b.classList.add('btn-equip');
+          b.textContent = 'Equip';
+        });
+        const clickedBtn = e.target as HTMLButtonElement;
+        clickedBtn.classList.remove('btn-equip');
+        clickedBtn.classList.add('btn-equipped');
+        clickedBtn.textContent = 'Equipped';
+
+        // Update main menu avatar preview
+        const menuSkinOptions = document.querySelectorAll('.skin-option');
+        menuSkinOptions.forEach(opt => opt.classList.remove('selected'));
+        const activeOpt = document.querySelector(`.skin-option[data-skin="${skinId}"]`);
+        if (activeOpt) activeOpt.classList.add('selected');
+
+        alert(`Equipped ${skinId}!`);
+        openProfileModal(); // re-render to update avatar preview
+      }
+    });
+  });
+
+  profileModal.style.display = 'flex';
+}
+
+function closeProfileModal() {
+  profileModal.style.display = 'none';
+}
+
+async function saveProfile() {
+  if (!currentUser) return;
+
+  const newUsername = editDisplayName.value.trim();
+  if (newUsername) {
+    currentUser.username = newUsername;
+    playerNameInput.value = newUsername;
+    if (game) game.setPlayerName(newUsername);
+  }
+
+  currentUser.twitter = editTwitter.value.trim();
+  currentUser.youtube = editYoutube.value.trim();
+  currentUser.bio = editBio.value.trim();
+
+  try {
+    saveProfileBtn.textContent = 'Saving...';
+    await updateUserProfile(currentUser);
+    setTimeout(() => {
+      saveProfileBtn.textContent = 'Synchronize Changes';
+      alert('Profile updated sectionly!');
+      openProfileModal(); // Refresh header with new name
+    }, 500);
+  } catch (e) {
+    console.error(e);
+    alert('Failed to save profile.');
+    saveProfileBtn.textContent = 'Synchronize Changes';
+  }
+}
+
+openProfileBtn.addEventListener('click', openProfileModal);
+closeProfileBtn.addEventListener('click', closeProfileModal);
+saveProfileBtn.addEventListener('click', saveProfile);
+
 
 loginBtn.addEventListener('click', handleLogin);
 
@@ -405,15 +549,60 @@ function startGame() {
   }
 
   deathPopup.style.display = 'none';
+  hamburgerMenuBtn.style.display = 'flex';
+
+  // Push Router Native State
+  history.pushState({ inGame: true }, '', `/${gameMode}`);
 
   // HUD Update Loop (only if not in editor)
   setInterval(async () => {
-    if (game && !isEditorMode) {
+    if (game && !isEditorMode && !game.isPaused) {
       const mass = game.getPlayerMass();
       scoreValue.textContent = mass.toString();
     }
   }, 200);
 }
+
+// History API Routing Listener
+window.addEventListener('popstate', (e) => {
+  // If the user hit back to the homepage
+  if (!e.state || !e.state.inGame) {
+    exitToMenu();
+  }
+});
+
+function exitToMenu() {
+  if (game) {
+    game.pause(); // Stop updating immediately
+  }
+
+  pauseModal.style.display = 'none';
+  deathPopup.style.display = 'none';
+  hamburgerMenuBtn.style.display = 'none';
+
+  menu.style.display = 'flex';
+  setTimeout(() => menu.style.opacity = '1', 50);
+}
+
+// Pause Menu Logic
+hamburgerMenuBtn.addEventListener('click', () => {
+  if (game && !game.isPaused) {
+    game.pause();
+    pauseModal.style.display = 'flex';
+  }
+});
+
+resumeBtn.addEventListener('click', () => {
+  if (game) {
+    game.resume();
+    pauseModal.style.display = 'none';
+  }
+});
+
+leaveGameBtn.addEventListener('click', () => {
+  history.pushState(null, '', '/');
+  exitToMenu();
+});
 
 respawnBtn.addEventListener('click', () => {
   deathPopup.style.display = 'none';

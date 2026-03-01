@@ -22,6 +22,9 @@ export interface UserProfile {
     wins: number;
     losses: number;
     owned_skins: string[];
+    bio?: string;
+    twitter?: string;
+    youtube?: string;
 }
 
 export async function initSchema() {
@@ -43,6 +46,9 @@ export async function initSchema() {
         try { await db.execute("ALTER TABLE users ADD COLUMN max_mass INTEGER DEFAULT 0"); } catch (e) { }
         try { await db.execute("ALTER TABLE users ADD COLUMN kills INTEGER DEFAULT 0"); } catch (e) { }
         try { await db.execute("ALTER TABLE users ADD COLUMN owned_skins TEXT DEFAULT '[\"default\", \"neon\", \"alien\", \"core\", \"ghost\", \"doge\", \"bunny\", \"alien_face\"]'"); } catch (e) { }
+        try { await db.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''"); } catch (e) { }
+        try { await db.execute("ALTER TABLE users ADD COLUMN twitter TEXT DEFAULT ''"); } catch (e) { }
+        try { await db.execute("ALTER TABLE users ADD COLUMN youtube TEXT DEFAULT ''"); } catch (e) { }
 
         console.log('Turso schema initialized');
     } catch (error) {
