@@ -10,8 +10,9 @@ export interface EntityState {
     mass: number;
     radius: number;
     color: string;
-    type: 'player' | 'bot' | 'food' | 'virus';
+    type: 'player' | 'bot' | 'food' | 'virus' | 'obstacle';
     name?: string;
+    skin?: string;
 }
 
 export abstract class Entity {
@@ -21,8 +22,9 @@ export abstract class Entity {
     mass: number;
     radius: number;
     color: string;
-    type: 'player' | 'bot' | 'food' | 'virus';
+    type: 'player' | 'bot' | 'food' | 'virus' | 'obstacle';
     name?: string;
+    skin?: string;
 
     friction: number = 0.98;
 
@@ -35,6 +37,7 @@ export abstract class Entity {
         this.color = state.color;
         this.type = state.type;
         this.name = state.name;
+        this.skin = state.skin;
     }
 
     update(dt: number) {
@@ -122,9 +125,34 @@ export class Blob extends Entity {
         // Draw blob body
         ctx.beginPath();
         ctx.arc(this.position.x, this.position.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = this.color;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.color;
+
+        // Skin logic
+        if (this.skin === 'neon') {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = this.color;
+        } else if (this.skin === 'alien') {
+            const grad = ctx.createRadialGradient(
+                this.position.x, this.position.y, 0,
+                this.position.x, this.position.y, this.radius
+            );
+            grad.addColorStop(0, '#4ade80');
+            grad.addColorStop(1, '#166534');
+            ctx.fillStyle = grad;
+        } else if (this.skin === 'core') {
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        } else if (this.skin === 'ghost') {
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = 0.5;
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = this.color;
+        }
+
         ctx.fill();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
         ctx.lineWidth = 2;
@@ -241,6 +269,61 @@ export class PowerUp extends Entity {
         const icon = this.powerType === 'SPEED' ? '⚡' : this.powerType === 'SHIELD' ? '🛡️' : '💎';
         ctx.fillText(icon, this.position.x, this.position.y);
 
+        ctx.restore();
+    }
+}
+
+export type ObstacleShape = 'RECT' | 'CIRCLE' | 'TRIANGLE' | 'LINE';
+
+export class Obstacle extends Entity {
+    shape: ObstacleShape;
+    width: number;
+    height: number;
+    rotation: number;
+
+    constructor(id: string, x: number, y: number, shape: ObstacleShape, width: number, height: number, color: string = '#475569', rotation: number = 0) {
+        super({
+            id,
+            position: { x, y },
+            velocity: { x: 0, y: 0 },
+            mass: 1000,
+            radius: Math.max(width, height) / 2,
+            color,
+            type: 'obstacle'
+        });
+        this.shape = shape;
+        this.width = width;
+        this.height = height;
+        this.rotation = rotation;
+    }
+
+    draw(ctx: CanvasRenderingContext2D, _camera: { x: number, y: number, scale: number }) {
+        ctx.save();
+        ctx.translate(this.position.x, this.position.y);
+        ctx.rotate(this.rotation);
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        if (this.shape === 'RECT') {
+            ctx.rect(-this.width / 2, -this.height / 2, this.width, this.height);
+        } else if (this.shape === 'CIRCLE') {
+            ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
+        } else if (this.shape === 'TRIANGLE') {
+            ctx.moveTo(0, -this.height / 2);
+            ctx.lineTo(-this.width / 2, this.height / 2);
+            ctx.lineTo(this.width / 2, this.height / 2);
+        } else if (this.shape === 'LINE') {
+            ctx.moveTo(-this.width / 2, 0);
+            ctx.lineTo(this.width / 2, 0);
+            ctx.stroke();
+            ctx.restore();
+            return;
+        }
+
+        ctx.fill();
+        ctx.stroke();
         ctx.restore();
     }
 }

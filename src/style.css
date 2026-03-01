@@ -54,6 +54,7 @@ h1 {
   margin: 0 0 30px;
   background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -2px;
   font-weight: 800;
@@ -179,6 +180,32 @@ h1 {
   margin-bottom: 20px;
 }
 
+.skin-options {
+  display: flex;
+  gap: 12px;
+  margin: 12px 0;
+  justify-content: center;
+}
+
+.skin-option {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.skin-option.active {
+  border-color: #fff;
+  transform: scale(1.1);
+}
+
+.skin-option:hover {
+  transform: scale(1.05);
+}
+
 .controls-hint {
   margin-top: 20px;
   font-size: 12px;
@@ -202,7 +229,8 @@ h1 {
   pointer-events: all;
   touch-action: none;
   z-index: 50;
-  display: none; /* Initially hidden */
+  display: none;
+  /* Initially hidden */
 }
 
 .joystick-knob {
@@ -223,7 +251,8 @@ h1 {
   gap: 20px;
   pointer-events: all;
   z-index: 50;
-  display: none; /* Initially hidden */
+  display: none;
+  /* Initially hidden */
 }
 
 .action-buttons.left {
@@ -301,7 +330,8 @@ h1 {
   opacity: 1;
 }
 
-.control-option img, .control-option .icon-placeholder {
+.control-option img,
+.control-option .icon-placeholder {
   width: 50px;
   height: 50px;
   background: #334155;
@@ -324,4 +354,78 @@ h1 {
   align-items: center;
   gap: 5px;
   cursor: pointer;
+}
+
+.editor-toolbar {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  padding: 10px 20px;
+  border-radius: 16px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  pointer-events: all;
+  z-index: 1000;
+}
+
+.toolbar-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.toolbar-section span {
+  font-size: 12px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.tool-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.tool-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.tool-btn.danger {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.tool-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.4);
+}
+
+.tool-btn.success {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+.tool-btn.success:hover {
+  background: rgba(16, 185, 129, 0.4);
+}
+
+#mapSizeInput {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 4px;
+  border-radius: 4px;
+  outline: none;
 }

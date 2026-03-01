@@ -47,6 +47,10 @@ game = new Game(canvas, async (stats) => {
   }
 });
 
+// Load existing map on startup
+const initialMap = localStorage.getItem('vlob_custom_map');
+if (initialMap) game.loadMap(JSON.parse(initialMap));
+
 inputManager = new InputManager({
   onMove: (x, y) => game?.setPlayerTarget(x, y),
   onSplit: () => game?.split(),
@@ -73,9 +77,21 @@ posRight?.addEventListener('change', () => {
   if (posRight.checked) inputManager?.setButtonPosition('right');
 });
 
+const DEV_WALLET = '2Z9eW3nwa2GZUM1JzXdfBK1MN57RPA2PrhuTREEZ31VY';
+const createMapBtn = document.getElementById('createMapBtn') as HTMLButtonElement;
+const editorToolbar = document.getElementById('editorToolbar') as HTMLDivElement;
+const mapSizeInput = document.getElementById('mapSizeInput') as HTMLInputElement;
+const toolBtns = document.querySelectorAll('.tool-btn:not(.danger):not(.success)');
+const clearMapBtn = document.getElementById('clearMapBtn');
+const saveMapBtn = document.getElementById('saveMapBtn');
+
 async function handleLogin() {
   const wallet = await auth.connect();
   if (wallet) {
+    if (wallet === DEV_WALLET) {
+      createMapBtn.style.display = 'block';
+    }
+
     await initSchema();
     let profile = await getUserProfile(wallet);
     if (!profile) {
@@ -96,6 +112,91 @@ async function handleLogin() {
 
 loginBtn.addEventListener('click', handleLogin);
 
+// --- Map Editor Logic ---
+let isEditorMode = false;
+
+createMapBtn.addEventListener('click', () => {
+  isEditorMode = true;
+  menu.style.display = 'none';
+  editorToolbar.style.display = 'flex';
+  if (game) {
+    game.setEditorMode(true);
+    // Load existing map if any
+    const savedMap = localStorage.getItem('vlob_custom_map');
+    if (savedMap) game.loadMap(JSON.parse(savedMap));
+  }
+});
+
+toolBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    toolBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const shape = (btn as HTMLElement).dataset.shape as any;
+    if (game) game.setSelectedShape(shape);
+  });
+});
+
+mapSizeInput.addEventListener('change', () => {
+  if (game) game.setWorldSize(parseInt(mapSizeInput.value));
+});
+
+clearMapBtn?.addEventListener('click', () => {
+  if (game) game.clearMap();
+});
+
+saveMapBtn?.addEventListener('click', () => {
+  if (game) {
+    const mapData = game.getMapData();
+    localStorage.setItem('vlob_custom_map', JSON.stringify(mapData));
+    isEditorMode = false;
+    game.setEditorMode(false);
+    editorToolbar.style.display = 'none';
+    menu.style.display = 'flex';
+    menu.style.opacity = '1';
+    alert('Map saved!');
+  }
+});
+
+// Handle Editor Clicks
+canvas.addEventListener('mousedown', (e) => {
+  if (!isEditorMode || !game) return;
+
+  // Convert click to world coordinates
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  // Add object on left click, remove on right click or if Alt key is down
+  if (e.button === 0 && !e.altKey) {
+    // We need to access mouseToWorld logic
+    // I'll add a helper to the game class or just implement it here
+    // Actually game.setPlayerTarget already handles mousePos, I can use that or add a specific method
+    const worldPos = (game as any).mouseToWorld(x, y);
+    game.addObstacleAt(worldPos.x, worldPos.y);
+  } else if (e.button === 2 || (e.button === 0 && e.altKey)) {
+    const worldPos = (game as any).mouseToWorld(x, y);
+    game.removeObstacleAt(worldPos.x, worldPos.y);
+  }
+});
+
+// Prevent context menu in editor
+canvas.addEventListener('contextmenu', (e) => {
+  if (isEditorMode) e.preventDefault();
+});
+
+let selectedSkin = 'default';
+
+// Skin Selection Wiring
+const skinOptions = document.querySelectorAll('.skin-option');
+skinOptions.forEach(opt => {
+  opt.addEventListener('click', () => {
+    skinOptions.forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    selectedSkin = opt.getAttribute('data-skin') || 'default';
+    if (game) game.setPlayerSkin(selectedSkin);
+  });
+});
+
 function startGame() {
   const name = playerNameInput.value || 'Guest';
   menu.style.opacity = '0';
@@ -103,37 +204,21 @@ function startGame() {
     menu.style.display = 'none';
   }, 300);
 
-  game = new Game(canvas, async (stats) => {
-    if (currentUser) {
-      currentUser.losses += 1;
-      currentUser.total_mass += stats.mass;
-      // Simple level up logic
-      currentUser.level = Math.floor(currentUser.total_mass / 5000) + 1;
+  // Use existing map if available
+  const savedMap = localStorage.getItem('vlob_custom_map');
+  if (game && savedMap) {
+    game.loadMap(JSON.parse(savedMap));
+  }
 
-      await updateUserProfile(currentUser);
+  if (game) {
+    game.setPlayerName(name);
+    game.setPlayerSkin(selectedSkin);
+    game.setEditorMode(false);
+  }
 
-      // Update UI
-      displayLevel.textContent = `Lvl ${currentUser.level}`;
-      displayWins.textContent = `Wins: ${currentUser.wins}`;
-    }
-  });
-  game.setPlayerName(name);
-
-  new InputManager({
-    onMove: (x, y) => {
-      if (game) game.setPlayerTarget(x, y);
-    },
-    onSplit: () => {
-      if (game) game.split();
-    },
-    onEject: () => {
-      if (game) game.ejectMass();
-    }
-  });
-
-  // HUD Update Loop
+  // HUD Update Loop (only if not in editor)
   setInterval(async () => {
-    if (game) {
+    if (game && !isEditorMode) {
       const mass = game.getPlayerMass();
       scoreValue.textContent = mass.toString();
 
@@ -151,9 +236,10 @@ function startGame() {
 
 playBtn.addEventListener('click', startGame);
 
-// Register PWA service worker (Vite PWA handles this automatically, but we can verify)
+// Register PWA service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // navigator.serviceWorker.register('/sw.js');
   });
 }
+

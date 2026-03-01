@@ -16,10 +16,25 @@
     <canvas id="gameCanvas"></canvas>
 
     <div id="hud">
-      <div class="leaderboard" id="leaderboard">
-        <h3>Leaderboard</h3>
-        <div id="leaderboardList"></div>
+      <!-- ... -->
+      <div id="editorToolbar" class="editor-toolbar" style="display: none;">
+        <div class="toolbar-section">
+          <span>Objects:</span>
+          <button class="tool-btn active" data-shape="RECT">Rect</button>
+          <button class="tool-btn" data-shape="CIRCLE">Circle</button>
+          <button class="tool-btn" data-shape="TRIANGLE">Triangle</button>
+          <button class="tool-btn" data-shape="LINE">Line</button>
+        </div>
+        <div class="toolbar-section">
+          <span>Map Size:</span>
+          <input type="number" id="mapSizeInput" value="5000" step="500" style="width: 70px;">
+        </div>
+        <div class="toolbar-section">
+          <button id="clearMapBtn" class="tool-btn danger">Clear</button>
+          <button id="saveMapBtn" class="tool-btn success">Save & Exit</button>
+        </div>
       </div>
+
 
       <div class="score-display">
         Mass: <span id="scoreValue">0</span>
@@ -73,11 +88,23 @@
               <input type="radio" name="btnPos" value="right" id="posRight" checked> Right
             </label>
           </div>
+          <h4>Skin</h4>
+          <div class="skin-options">
+            <div class="skin-option active" data-skin="default" style="background: #3b82f6;"></div>
+            <div class="skin-option" data-skin="neon"
+              style="background: linear-gradient(45deg, #3b82f6, #60a5fa); box-shadow: 0 0 10px #3b82f6;"></div>
+            <div class="skin-option" data-skin="alien" style="background: radial-gradient(circle, #4ade80, #166534);">
+            </div>
+            <div class="skin-option" data-skin="core" style="background: #1e293b; border: 2px solid #3b82f6;"></div>
+            <div class="skin-option" data-skin="ghost" style="background: rgba(59, 130, 246, 0.5);"></div>
+          </div>
         </div>
 
-        <button class="play-btn" id="playBtn">Play</button>
+        <button class="play-btn" id="playBtn" style="margin-bottom: 10px;">Play</button>
+        <button class="solana-btn" id="createMapBtn" style="display: none; background: #8b5cf6; color: white;">Create
+          Map (Dev Only)</button>
         <div class="controls-hint">
-          Desktop: Mouse to move, Space to Split, W to Eject<br>
+          Desktop: Mouse to move, Space to Split, E to Eject<br>
           Mobile: Touch to move
         </div>
       </div>
