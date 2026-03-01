@@ -25,7 +25,6 @@ const modeFFA = document.getElementById('modeFFA') as HTMLDivElement;
 const modeTeam = document.getElementById('modeTeam') as HTMLDivElement;
 let gameMode: 'ffa' | 'team' = 'ffa';
 
-const scoreDisplay = document.querySelector('.score-display') as HTMLDivElement;
 const scoreValue = document.getElementById('scoreValue') as HTMLSpanElement;
 
 let game: Game | null = null;
@@ -551,7 +550,6 @@ function startGame() {
 
   deathPopup.style.display = 'none';
   hamburgerMenuBtn.style.display = 'flex';
-  scoreDisplay.style.display = 'block';
 
   // Push Router Native State
   history.pushState({ inGame: true }, '', `/${gameMode}`);
@@ -581,7 +579,6 @@ function exitToMenu() {
   pauseModal.style.display = 'none';
   deathPopup.style.display = 'none';
   hamburgerMenuBtn.style.display = 'none';
-  scoreDisplay.style.display = 'none';
 
   menu.style.display = 'flex';
   setTimeout(() => menu.style.opacity = '1', 50);
