@@ -13,7 +13,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'VLOB - Smooth Agar.io Clone',
+        name: 'VLOB',
         short_name: 'VLOB',
         description: 'A premium Agar.io clone for desktop and mobile.',
         theme_color: '#0f172a',

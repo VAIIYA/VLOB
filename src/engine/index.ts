@@ -29,20 +29,6 @@ export class Game {
         this.resize();
         window.addEventListener('resize', () => this.resize());
 
-        // Initialize player
-        const player = new Blob({
-            id: 'player-1',
-            position: { x: 0, y: 0 },
-            velocity: { x: 0, y: 0 },
-            mass: 25,
-            radius: 0,
-            color: '#3b82f6',
-            type: 'player',
-            name: 'YOU'
-        });
-
-        this.playerBlobs.push(player);
-        this.entities.push(player);
 
         // Initial food
         this.spawnFood(800);
@@ -365,14 +351,7 @@ export class Game {
         });
 
         // Check for Game Over
-        if (this.playerBlobs.length === 0 && this.entities.some(e => e.id === 'player-1' || e.id.startsWith('player-'))) {
-            const missingBlobs = this.entities.filter(e => e instanceof Blob && e.type === 'player') as Blob[];
-            if (missingBlobs.length > 0) {
-                this.playerBlobs = missingBlobs;
-            } else {
-                this.handleGameOver();
-            }
-        } else if (this.playerBlobs.length === 0) {
+        if (this.playerBlobs.length === 0) {
             this.handleGameOver();
         }
     }
