@@ -45,8 +45,27 @@ body {
   text-align: center;
   width: 100%;
   max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
   transform: translateY(0);
   transition: transform 0.3s ease;
+}
+
+/* Custom scrollbar for menu card */
+.menu-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.menu-card::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+@media (max-width: 480px) {
+  .menu-card {
+    padding: 20px;
+  }
 }
 
 h1 {
@@ -500,7 +519,25 @@ h1 {
   text-align: center;
   width: 90%;
   max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.popup-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.popup-card::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+@media (max-width: 480px) {
+  .popup-card {
+    padding: 20px;
+  }
 }
 
 .popup-card h2 {
